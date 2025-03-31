@@ -1,7 +1,6 @@
 """
 Test configuration for the Platform Core service.
 """
-import os
 from unittest.mock import MagicMock
 
 import pytest

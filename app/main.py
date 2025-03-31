@@ -65,20 +65,18 @@ app = FastAPI(
     title="Dotmac Platform Core",
     description="""
     Centralized service for configuration, logging, auditing, webhooks, notifications, feature flags, and health checks.
-    
     ## Features
-    
-    * **Configuration Management**: Store and retrieve configuration values with namespacing, versioning, and access control
+    * **Configuration Management**: Store and retrieve configuration values with namespacing,
+      versioning, and access control
     * **Structured Logging**: Store and retrieve structured application logs
     * **Audit Logging**: Track sensitive actions for compliance and security
     * **Webhooks**: Register webhook endpoints and trigger webhooks for events
     * **Notifications**: Create and manage user notifications
     * **Feature Flags**: Toggle features on/off globally or for specific users/groups
     * **Health Checks**: Monitor the health and readiness of your application
-    
     ## Authentication
-    
-    This API uses JWT tokens for authentication. The token should be provided in the Authorization header as a Bearer token.
+    This API uses JWT tokens for authentication. The token should be provided in the
+    Authorization header as a Bearer token.
     """,
     version=settings.VERSION,
     openapi_tags=tags_metadata,
@@ -106,7 +104,6 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
 
 # Setup Prometheus instrumentation
 Instrumentator().instrument(app).expose(app)

@@ -1,9 +1,9 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 import redis
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from .models import (
     FeatureFlag,

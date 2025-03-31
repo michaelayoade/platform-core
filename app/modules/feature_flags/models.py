@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Boolean, Column, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, String, Text
 
 from app.db.base_model import BaseModel as DBBaseModel
 from app.db.session import Base

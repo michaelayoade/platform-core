@@ -3,15 +3,14 @@ Service for the notifications module.
 """
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import List, Optional
 
 import redis
 from fastapi import BackgroundTasks
 from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session
 
-from app.db.redis import get_redis
 from app.modules.notifications.models import (
     Notification,
     NotificationBulkCreate,

@@ -1,7 +1,6 @@
 """
 Tests for the health module.
 """
-from fastapi.testclient import TestClient
 
 from app.modules.health.models import ServiceStatus
 

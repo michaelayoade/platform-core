@@ -6,8 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Boolean, Column, DateTime
-from sqlalchemy import Enum as SQLAlchemyEnum
+from sqlalchemy import JSON, Column, DateTime
 from sqlalchemy import Index, Integer, String, Text
 from sqlalchemy.sql import func
 

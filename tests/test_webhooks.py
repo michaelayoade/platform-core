@@ -6,17 +6,12 @@ import hmac
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.modules.webhooks.models import (
     WebhookDelivery,
     WebhookDeliveryStatus,
     WebhookEndpoint,
-    WebhookEndpointCreate,
     WebhookSubscription,
-    WebhookSubscriptionCreate,
 )
 from app.modules.webhooks.service import WebhooksService
 

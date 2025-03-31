@@ -3,18 +3,13 @@ Tests for the notifications module.
 """
 from datetime import datetime, timedelta
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.modules.notifications.models import (
     Notification,
-    NotificationCreate,
     NotificationPriority,
     NotificationStatus,
     NotificationType,
 )
-from app.modules.notifications.service import NotificationsService
 
 
 def test_create_notification(client, db_session):

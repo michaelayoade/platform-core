@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from redis import Redis
-from sqlalchemy.engine import Engine
 
 from app.core.settings import get_settings
 from app.db.redis import get_redis

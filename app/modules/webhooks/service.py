@@ -441,11 +441,13 @@ class WebhooksService:
             # Log success or failure
             if db_delivery.success:
                 logger.info(
-                    f"Webhook delivery successful: ID={db_delivery.id}, Event={event_type}, Status={response.status_code}"
+                    f"Webhook delivery successful: "
+                    f"ID={db_delivery.id}, Event={event_type}, Status={response.status_code}"
                 )
             else:
                 logger.warning(
-                    f"Webhook delivery failed: ID={db_delivery.id}, Event={event_type}, Status={response.status_code}"
+                    f"Webhook delivery failed: "
+                    f"ID={db_delivery.id}, Event={event_type}, Status={response.status_code}"
                 )
 
         except Exception as e:

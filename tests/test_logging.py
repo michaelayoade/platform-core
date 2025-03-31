@@ -4,9 +4,6 @@ Tests for the logging module.
 import json
 from datetime import datetime, timedelta
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.modules.logging.models import LogEntry, LogEntryCreate, LogLevel
 from app.modules.logging.service import LoggingService

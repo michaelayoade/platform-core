@@ -5,10 +5,8 @@ from sqlalchemy.orm import Session
 from app.core.settings import get_settings
 from app.db.session import Base, SessionLocal, engine
 from app.modules.audit.models import AuditLog  # noqa: F401
-from app.modules.feature_flags.models import (
-    FeatureFlag,
-    FeatureFlagSegment,
-)  # noqa: F401
+from app.modules.config.models import ConfigScope  # noqa: F401
+from app.modules.feature_flags.models import FeatureFlag  # noqa: F401
 from app.modules.logging.models import LogEntry  # noqa: F401
 from app.modules.notifications.models import Notification  # noqa: F401
 
