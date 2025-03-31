@@ -81,6 +81,9 @@ jobs:
           # Also install development dependencies for tests
           pip install -r requirements-dev.txt
 
+      - name: Ensure pytest-cov is installed
+        run: pip install pytest-cov
+
       - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/platform_core_test
