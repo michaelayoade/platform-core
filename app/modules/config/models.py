@@ -15,6 +15,8 @@ class ConfigScope(BaseModel):
     Configuration scope model (e.g., 'auth', 'billing').
     """
 
+    __tablename__ = "configscope"
+
     # Use mapped_column for explicit column definitions
     name: Mapped[str] = mapped_column(
         String(100), unique=True, index=True, nullable=False
@@ -31,6 +33,8 @@ class ConfigItem(BaseModel):
     """
     Configuration item model.
     """
+
+    __tablename__ = "configitem"
 
     key: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     value: Mapped[str] = mapped_column(Text, nullable=False)
@@ -57,6 +61,8 @@ class ConfigHistory(BaseModel):
     """
     Configuration history model for tracking changes.
     """
+
+    __tablename__ = "confighistory"
 
     value: Mapped[str] = mapped_column(Text, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
