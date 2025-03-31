@@ -2,28 +2,31 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Column, String, Text
+from sqlalchemy import JSON, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base_model import BaseModel as DBBaseModel
-from app.db.session import Base
+from app.db.base_model import BaseModel
 
 
-class AuditLog(Base, DBBaseModel):
+class AuditLog(BaseModel):
     """
     Audit log model for tracking sensitive actions.
+    Inherits id, created_at, updated_at from BaseModel.
     """
 
-    actor_id = Column(String(255), index=True, nullable=False)
-    event_type = Column(String(100), index=True, nullable=False)
-    resource_type = Column(String(100), index=True, nullable=False)
-    resource_id = Column(String(255), index=True, nullable=False)
-    action = Column(String(50), index=True, nullable=False)
-    old_value = Column(Text, nullable=True)
-    new_value = Column(Text, nullable=True)
-    event_metadata = Column(
+    actor_id: Mapped[str] = mapped_column(String(255), index=True)
+    event_type: Mapped[str] = mapped_column(String(100), index=True)
+    resource_type: Mapped[str] = mapped_column(String(100), index=True)
+    resource_id: Mapped[str] = mapped_column(String(255), index=True)
+    action: Mapped[str] = mapped_column(String(50), index=True)
+    old_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    new_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    event_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSON, nullable=True
-    )  # Renamed from metadata to avoid SQLAlchemy conflict
-    ip_address = Column(String(45), nullable=True)  # IPv6 can be up to 45 chars
+    )
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String(45), nullable=True
+    )  # IPv6 can be up to 45 chars
 
 
 # Pydantic models for API
