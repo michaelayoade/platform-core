@@ -18,6 +18,9 @@ class AuditLog(BaseModel):
     Inherits id, created_at, updated_at from BaseModel.
     """
 
+    # Explicitly define tablename (though BaseModel should handle it)
+    __tablename__ = "auditlog"
+
     actor_id: Mapped[str] = mapped_column(String(255), index=True)
     event_type: Mapped[str] = mapped_column(String(100), index=True)
     resource_type: Mapped[str] = mapped_column(String(100), index=True)
