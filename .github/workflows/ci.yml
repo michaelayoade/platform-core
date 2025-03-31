@@ -28,7 +28,10 @@ jobs:
       - name: Run flake8
         run: flake8 app tests
 
-      - name: Run black
+      - name: Format with black
+        run: black app tests
+
+      - name: Check black formatting
         run: black --check app tests
 
       - name: Run isort
