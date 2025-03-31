@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -23,10 +23,13 @@ class BaseModel(DeclarativeBase):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
     # Timestamps using Mapped and mapped_column
-    # Note: Using server_default=func.now() is often preferred for DB-level defaults
+    # Use server_default and server_onupdate with func.now() for DB-level timestamps
     created_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, nullable=False
+        server_default=func.now(),  # Use database function
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        server_default=func.now(),  # Use database function for initial value
+        server_onupdate=func.now(),  # Use database function for updates
+        nullable=False,
     )

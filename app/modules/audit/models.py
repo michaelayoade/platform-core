@@ -2,8 +2,10 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 # Alias Pydantic's BaseModel to avoid conflict
-from pydantic import BaseModel as PydanticBaseModel, Field
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import Field
 from sqlalchemy import JSON, String, Text
+
 # Corrected import for the base model
 from sqlalchemy.orm import Mapped, mapped_column
 
