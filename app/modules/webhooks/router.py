@@ -1,6 +1,7 @@
 """
 Router for the webhooks module.
 """
+
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query

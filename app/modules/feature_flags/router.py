@@ -8,11 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.redis import get_redis_client
 from app.db.session import get_db
 
-from .models import (
-    FeatureFlagCreate,
-    FeatureFlagResponse,
-    FeatureFlagUpdate,
-)
+from .models import FeatureFlagCreate, FeatureFlagResponse, FeatureFlagUpdate
 from .service import FeatureFlagsService
 
 router = APIRouter()

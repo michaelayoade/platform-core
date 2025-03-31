@@ -1,13 +1,13 @@
 """
 Models for the notifications module.
 """
+
 import enum
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Column, DateTime
-from sqlalchemy import Index, Integer, String, Text
+from sqlalchemy import JSON, Column, DateTime, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.db.base_model import Base

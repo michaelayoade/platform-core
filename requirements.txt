@@ -2,6 +2,7 @@
 fastapi
 uvicorn[standard] # ASGI server
 pydantic # Data validation
+pydantic-settings>=2.0.0
 python-dotenv # Environment variable loading
 
 # Database
@@ -22,7 +23,7 @@ passlib[bcrypt] # For potential hashing needs
 # HTTP Client (for webhooks)
 httpx
 
-# Testing
-pytest
-pytest-asyncio
-pytest-cov
+# Testing - Moved to dev-requirements.txt
+# pytest
+# pytest-asyncio
+# pytest-cov

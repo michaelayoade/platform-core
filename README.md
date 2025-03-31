@@ -30,26 +30,26 @@ A foundational FastAPI-based microservice that provides essential platform servi
    ```
    # Environment Configuration
    ENV=development
-   
+
    # Server Settings
    HOST=0.0.0.0
    PORT=8000
    RELOAD=True
-   
+
    # Database Settings
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/platform_core
-   
+
    # Redis Settings
    REDIS_URL=redis://localhost:6379/0
-   
+
    # Security
    SECRET_KEY=replace_with_secure_key_in_production
    ALGORITHM=HS256
    ACCESS_TOKEN_EXPIRE_MINUTES=30
-   
+
    # Logging
    LOG_LEVEL=INFO
-   
+
    # Webhooks
    WEBHOOK_SECRET=replace_with_secure_key_in_production
    WEBHOOK_MAX_RETRIES=3

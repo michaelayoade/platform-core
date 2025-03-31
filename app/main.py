@@ -1,8 +1,13 @@
-from fastapi import FastAPI
-from dotenv import load_dotenv
 import logging
-from prometheus_fastapi_instrumentator import Instrumentator
 import os
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
+
+# Import settings and DB initialization
+from app.core.settings import get_settings
+from app.db.init_db import init_db
 
 # Import routers for different modules
 from app.modules.audit.router import router as audit_router
@@ -12,10 +17,6 @@ from app.modules.health.router import router as health_router
 from app.modules.logging.router import router as logging_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.webhooks.router import router as webhooks_router
-
-# Import settings and DB initialization
-from app.core.settings import get_settings
-from app.db.init_db import init_db
 
 # Configure logging
 logging.basicConfig(

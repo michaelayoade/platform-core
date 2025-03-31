@@ -1,10 +1,12 @@
 import os
 import sys
 from logging.config import fileConfig
-import alembic
+
 from sqlalchemy import engine_from_config, pool
-from app.db.base_class import Base  # Import Base from your models
+
+import alembic
 from app.core.settings import get_settings  # Import settings if needed for DB URL
+from app.db.base_class import Base  # Import Base from your models
 
 # Adjust the path according to your actual project structure
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))

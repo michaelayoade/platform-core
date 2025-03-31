@@ -1,6 +1,7 @@
 """
 Router for the notifications module.
 """
+
 from typing import List, Optional
 
 import redis

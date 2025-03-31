@@ -1,22 +1,13 @@
 """
 Models for the webhooks module.
 """
+
 import enum
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-)
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.db.base_model import Base

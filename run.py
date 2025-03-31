@@ -6,6 +6,7 @@ This script provides a convenient way to start the service with various options.
 import argparse
 import os
 import sys
+
 import uvicorn
 from dotenv import load_dotenv
 

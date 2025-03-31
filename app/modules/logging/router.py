@@ -1,6 +1,7 @@
 """
 Router for the logging module.
 """
+
 from datetime import datetime
 from typing import List, Optional
 
@@ -107,9 +108,9 @@ async def export_logs_to_json(
 
     # Return as downloadable JSON file
     response = Response(content=json_data, media_type="application/json")
-    response.headers[
-        "Content-Disposition"
-    ] = f"attachment; filename=logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    response.headers["Content-Disposition"] = (
+        f"attachment; filename=logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     return response
 
 

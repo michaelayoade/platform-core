@@ -1,4 +1,4 @@
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 from fastapi import HTTPException, status
 from redis import Redis

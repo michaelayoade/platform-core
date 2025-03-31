@@ -5,11 +5,7 @@ from typing import Any, Dict, List, Optional
 import redis
 from sqlalchemy.orm import Session
 
-from .models import (
-    FeatureFlag,
-    FeatureFlagCreate,
-    FeatureFlagUpdate,
-)
+from .models import FeatureFlag, FeatureFlagCreate, FeatureFlagUpdate
 
 logger = logging.getLogger(__name__)
 

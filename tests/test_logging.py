@@ -1,9 +1,9 @@
 """
 Tests for the logging module.
 """
+
 import json
 from datetime import datetime, timedelta
-
 
 from app.modules.logging.models import LogEntry, LogEntryCreate, LogLevel
 from app.modules.logging.service import LoggingService

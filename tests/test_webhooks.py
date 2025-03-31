@@ -1,18 +1,13 @@
 """
 Tests for the webhooks module.
 """
+
 import hashlib
 import hmac
 import json
 from unittest.mock import MagicMock, patch
 
-
-from app.modules.webhooks.models import (
-    WebhookDelivery,
-    WebhookDeliveryStatus,
-    WebhookEndpoint,
-    WebhookSubscription,
-)
+from app.modules.webhooks.models import WebhookDelivery, WebhookDeliveryStatus, WebhookEndpoint, WebhookSubscription
 from app.modules.webhooks.service import WebhooksService
 
 
