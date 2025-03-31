@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
+# Alias Pydantic's BaseModel to avoid conflict
+from pydantic import BaseModel as PydanticBaseModel, Field
 from sqlalchemy import JSON, String, Text
+# Corrected import for the base model
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base_model import BaseModel
@@ -30,7 +32,7 @@ class AuditLog(BaseModel):
 
 
 # Pydantic models for API
-class AuditLogCreate(BaseModel):
+class AuditLogCreate(PydanticBaseModel):
     """
     Schema for creating an audit log entry.
     """
@@ -44,17 +46,25 @@ class AuditLogCreate(BaseModel):
     resource_type: Optional[str] = Field(
         None,
         max_length=50,
-        description="Type of the resource affected (e.g., 'user', 'config')",
+        description="Type of the resource being acted upon (e.g., 'user', 'config')",
     )
-    resource_id: str
-    action: str
+    resource_id: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Identifier of the specific resource being acted upon",
+    )
+    action: str = Field(
+        ..., max_length=50, description="Action performed (e.g., 'create', 'update')"
+    )
     old_value: Optional[str] = None
     new_value: Optional[str] = None
-    event_metadata: Optional[Dict[str, Any]] = None  # Renamed from metadata
+    event_metadata: Optional[Dict[str, Any]] = Field(
+        None, description="Additional contextual information as JSON"
+    )
     ip_address: Optional[str] = None
 
 
-class AuditLogResponse(BaseModel):
+class AuditLogResponse(PydanticBaseModel):
     """
     Schema for audit log response.
     """
@@ -67,7 +77,7 @@ class AuditLogResponse(BaseModel):
     action: str
     old_value: Optional[str] = None
     new_value: Optional[str] = None
-    event_metadata: Optional[Dict[str, Any]] = None  # Renamed from metadata
+    event_metadata: Optional[Dict[str, Any]] = None
     ip_address: Optional[str] = None
     created_at: datetime
 
