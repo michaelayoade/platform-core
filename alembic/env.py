@@ -18,7 +18,7 @@ if config.config_file_name is not None:
 
 # Add the project root directory to the Python path
 # This allows Alembic to find your models
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, project_root)
 
 # Import your base metadata object
@@ -47,10 +47,11 @@ target_metadata = Base.metadata
 def get_url():
     """Return the database URL from settings."""
     # Prefer DATABASE_URL environment variable if set, otherwise use alembic.ini
-    db_url = os.getenv('DATABASE_URL')
+    db_url = os.getenv("DATABASE_URL")
     if db_url:
         return db_url
     return config.get_main_option("sqlalchemy.url")
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -92,9 +93,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

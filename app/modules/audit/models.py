@@ -20,7 +20,9 @@ class AuditLog(Base, DBBaseModel):
     action = Column(String(50), index=True, nullable=False)
     old_value = Column(Text, nullable=True)
     new_value = Column(Text, nullable=True)
-    event_metadata = Column(JSON, nullable=True)  # Renamed from metadata to avoid SQLAlchemy conflict
+    event_metadata = Column(
+        JSON, nullable=True
+    )  # Renamed from metadata to avoid SQLAlchemy conflict
     ip_address = Column(String(45), nullable=True)  # IPv6 can be up to 45 chars
 
 
@@ -32,10 +34,14 @@ class AuditLogCreate(BaseModel):
 
     actor_id: str
     event_type: str = Field(
-        ..., max_length=50, description="Type of the event (e.g., 'user_login', 'config_update')"
+        ...,
+        max_length=50,
+        description="Type of the event (e.g., 'user_login', 'config_update')",
     )
     resource_type: Optional[str] = Field(
-        None, max_length=50, description="Type of the resource affected (e.g., 'user', 'config')"
+        None,
+        max_length=50,
+        description="Type of the resource affected (e.g., 'user', 'config')",
     )
     resource_id: str
     action: str

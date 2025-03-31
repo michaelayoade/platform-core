@@ -30,9 +30,7 @@ class FeatureFlagsService:
 
     @staticmethod
     def create_feature_flag(
-        db: Session,
-        redis_client: redis.Redis,
-        flag_in: FeatureFlagCreate
+        db: Session, redis_client: redis.Redis, flag_in: FeatureFlagCreate
     ) -> FeatureFlag:
         """Creates a new feature flag."""
         existing = db.query(FeatureFlag).filter(FeatureFlag.key == flag_in.key).first()
@@ -50,18 +48,13 @@ class FeatureFlagsService:
         return db_flag
 
     @staticmethod
-    def get_feature_flag_by_key(
-        db: Session,
-        flag_key: str
-    ) -> Optional[FeatureFlag]:
+    def get_feature_flag_by_key(db: Session, flag_key: str) -> Optional[FeatureFlag]:
         """Retrieves a feature flag by its key."""
         return db.query(FeatureFlag).filter(FeatureFlag.key == flag_key).first()
 
     @staticmethod
     def get_feature_flags(
-        db: Session,
-        skip: int = 0,
-        limit: int = 100
+        db: Session, skip: int = 0, limit: int = 100
     ) -> List[FeatureFlag]:
         """Retrieves a list of feature flags."""
         return db.query(FeatureFlag).offset(skip).limit(limit).all()
@@ -94,9 +87,7 @@ class FeatureFlagsService:
 
     @staticmethod
     def delete_feature_flag(
-        db: Session,
-        redis_client: redis.Redis,
-        flag_key: str
+        db: Session, redis_client: redis.Redis, flag_key: str
     ) -> bool:
         """Deletes a feature flag."""
         db_flag = FeatureFlagsService.get_feature_flag_by_key(db, flag_key)
@@ -115,10 +106,7 @@ class FeatureFlagsService:
 
     @staticmethod
     def is_feature_enabled(
-        db: Session,
-        redis_client: redis.Redis,
-        flag_key: str,
-        context: Dict[str, Any]
+        db: Session, redis_client: redis.Redis, flag_key: str, context: Dict[str, Any]
     ) -> bool:
         """Checks if a feature flag is enabled for the given context."""
         # 1. Check Cache
@@ -129,16 +117,12 @@ class FeatureFlagsService:
             return FeatureFlagsService._evaluate_rules(
                 globally_enabled=cached_flag["enabled"],
                 rules=cached_flag.get("rules"),
-                context=context
+                context=context,
             )
 
         # 2. Cache miss - Fetch from DB
         logger.debug(f"Cache miss for feature flag '{flag_key}'. Fetching from DB.")
-        db_flag = (
-            db.query(FeatureFlag)
-            .filter(FeatureFlag.key == flag_key)
-            .first()
-        )
+        db_flag = db.query(FeatureFlag).filter(FeatureFlag.key == flag_key).first()
 
         if not db_flag:
             # Flag doesn't exist
@@ -147,9 +131,7 @@ class FeatureFlagsService:
 
         # 3. Evaluate Rules
         is_enabled = FeatureFlagsService._evaluate_rules(
-            globally_enabled=db_flag.enabled,
-            rules=db_flag.rules,
-            context=context
+            globally_enabled=db_flag.enabled, rules=db_flag.rules, context=context
         )
 
         # 4. Update Cache
@@ -159,15 +141,13 @@ class FeatureFlagsService:
 
     @staticmethod
     def _evaluate_rules(
-        globally_enabled: bool,
-        rules: Optional[Dict[str, Any]],
-        context: Dict[str, Any]
+        globally_enabled: bool, rules: Optional[Dict[str, Any]], context: Dict[str, Any]
     ) -> bool:
         """Evaluates targeting rules against the provided context."""
         if not globally_enabled:
             return False  # If globally disabled, rules don't matter
 
-        if not rules: 
+        if not rules:
             # No specific rules, default to globally enabled state
             return True
 
@@ -192,6 +172,7 @@ class FeatureFlagsService:
         if percentage is not None and user_id:
             # Basic hash-based rollout (needs a stable hashing function)
             import hashlib
+
             user_hash = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
             if (user_hash % 100) < percentage:
                 return True
@@ -201,13 +182,11 @@ class FeatureFlagsService:
         # If globally enabled AND NO rules, default is true (handled above).
         return False
 
-
     # --- Cache Management ---
 
     @staticmethod
     def _get_flag_from_cache(
-        redis_client: redis.Redis,
-        flag_key: str
+        redis_client: redis.Redis, flag_key: str
     ) -> Optional[Dict]:
         """Retrieves flag data from Redis cache."""
         cache_key = FeatureFlagsService._get_cache_key(flag_key)
@@ -215,39 +194,36 @@ class FeatureFlagsService:
             cached_data = redis_client.get(cache_key)
             if cached_data:
                 import json
+
                 return json.loads(cached_data)
         except redis.RedisError as e:
             logger.error(f"Redis error getting cache for '{flag_key}': {e}")
         return None
 
     @staticmethod
-    def _cache_flag(
-        redis_client: redis.Redis,
-        flag: FeatureFlag
-    ):
+    def _cache_flag(redis_client: redis.Redis, flag: FeatureFlag):
         """Stores flag data in Redis cache."""
         cache_key = FeatureFlagsService._get_cache_key(flag.key)
         try:
             import json
+
             flag_data = {
                 "key": flag.key,
                 "enabled": flag.enabled,
                 "rules": flag.rules,
-                "updated_at": flag.updated_at.isoformat() if flag.updated_at else None
+                "updated_at": flag.updated_at.isoformat() if flag.updated_at else None,
             }
-            redis_client.set(cache_key, json.dumps(flag_data), ex=FEATURE_FLAG_CACHE_TTL)
+            redis_client.set(
+                cache_key, json.dumps(flag_data), ex=FEATURE_FLAG_CACHE_TTL
+            )
             logger.debug(f"Cached feature flag '{flag.key}'")
         except redis.RedisError as e:
             logger.error(f"Redis error setting cache for '{flag.key}': {e}")
         except TypeError as e:
-             logger.error(f"Serialization error caching flag '{flag.key}': {e}")
-
+            logger.error(f"Serialization error caching flag '{flag.key}': {e}")
 
     @staticmethod
-    def invalidate_flag_cache(
-        redis_client: redis.Redis,
-        flag_key: str
-    ):
+    def invalidate_flag_cache(redis_client: redis.Redis, flag_key: str):
         """Removes a flag from the Redis cache."""
         cache_key = FeatureFlagsService._get_cache_key(flag_key)
         try:

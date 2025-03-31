@@ -45,9 +45,7 @@ async def get_scopes(
     return await ConfigService.get_scopes(db, skip, limit)
 
 
-@router.get(
-    "/scopes/{scope_name}", response_model=ConfigScopeResponse
-)
+@router.get("/scopes/{scope_name}", response_model=ConfigScopeResponse)
 async def get_scope(
     scope_name: str, db: Session = Depends(get_db)
 ) -> ConfigScopeResponse:
@@ -96,9 +94,7 @@ async def create_config_item(
     return config_item
 
 
-@router.get(
-    "/{scope_name}", response_model=List[ConfigItemResponse]
-)
+@router.get("/{scope_name}", response_model=List[ConfigItemResponse])
 async def get_config_items(
     scope_name: str,
     skip: int = 0,
@@ -111,9 +107,7 @@ async def get_config_items(
     return await ConfigService.get_config_items(db, scope_name, skip, limit)
 
 
-@router.get(
-    "/{scope_name}/{key}", response_model=ConfigItemResponse
-)
+@router.get("/{scope_name}/{key}", response_model=ConfigItemResponse)
 async def get_config_item(
     scope_name: str,
     key: str,
@@ -153,9 +147,7 @@ async def get_config_item(
         return config_item
 
 
-@router.put(
-    "/{scope_name}/{key}", response_model=ConfigItemResponse
-)
+@router.put("/{scope_name}/{key}", response_model=ConfigItemResponse)
 async def update_config_item(
     scope_name: str,
     key: str,
@@ -184,9 +176,7 @@ async def update_config_item(
     return config_item
 
 
-@router.delete(
-    "/{scope_name}/{key}", status_code=status.HTTP_204_NO_CONTENT
-)
+@router.delete("/{scope_name}/{key}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_config_item(
     scope_name: str,
     key: str,

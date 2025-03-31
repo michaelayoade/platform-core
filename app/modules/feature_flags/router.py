@@ -40,7 +40,9 @@ async def create_feature_flag(
 ) -> FeatureFlagResponse:
     """Create a new feature flag definition."""
     try:
-        flag = FeatureFlagsService.create_feature_flag(db, redis_client, flag_in=flag_in)
+        flag = FeatureFlagsService.create_feature_flag(
+            db, redis_client, flag_in=flag_in
+        )
     except ValueError as e:
         logger.warning(f"Failed to create feature flag '{flag_in.key}': {e}")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -123,7 +125,9 @@ async def delete_feature_flag(
     redis_client: redis.Redis = Depends(get_redis_client),
 ) -> None:
     """Delete a feature flag and its segments."""
-    deleted = FeatureFlagsService.delete_feature_flag(db, redis_client, flag_key=flag_key)
+    deleted = FeatureFlagsService.delete_feature_flag(
+        db, redis_client, flag_key=flag_key
+    )
     if not deleted:
         logger.warning(f"Feature flag with key '{flag_key}' not found for deletion.")
         raise HTTPException(
@@ -168,6 +172,6 @@ async def evaluate_feature_flag(
         # For other errors (e.g., Redis down), a 500 might be appropriate
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error evaluating feature flag"
+            detail="Error evaluating feature flag",
         )
     return is_enabled

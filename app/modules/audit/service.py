@@ -3,10 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.modules.audit.models import (
-    AuditLog,
-    AuditLogCreate
-)
+from app.modules.audit.models import AuditLog, AuditLogCreate
 
 
 class AuditService:
@@ -15,9 +12,7 @@ class AuditService:
     """
 
     @staticmethod
-    async def create_audit_log(
-        db: Session, audit_log: AuditLogCreate
-    ) -> AuditLog:
+    async def create_audit_log(db: Session, audit_log: AuditLogCreate) -> AuditLog:
         """
         Create a new audit log entry.
         """
@@ -86,9 +81,7 @@ class AuditService:
         return query.offset(skip).limit(limit).all()
 
     @staticmethod
-    async def get_audit_log_by_id(
-        db: Session, audit_log_id: int
-    ) -> Optional[AuditLog]:
+    async def get_audit_log_by_id(db: Session, audit_log_id: int) -> Optional[AuditLog]:
         """
         Get an audit log by ID.
         """

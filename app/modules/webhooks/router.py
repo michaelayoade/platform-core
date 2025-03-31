@@ -24,7 +24,11 @@ from app.modules.webhooks.service import WebhooksService
 router = APIRouter()
 
 
-@router.post("/endpoints", response_model=WebhookEndpointResponse, status_code=http_status.HTTP_201_CREATED)
+@router.post(
+    "/endpoints",
+    response_model=WebhookEndpointResponse,
+    status_code=http_status.HTTP_201_CREATED,
+)
 async def create_webhook_endpoint(
     endpoint: WebhookEndpointCreate, db: Session = Depends(get_db)
 ):
@@ -125,7 +129,9 @@ async def get_webhook_subscriptions(endpoint_id: int, db: Session = Depends(get_
     return await WebhooksService.get_subscriptions(db, endpoint_id)
 
 
-@router.delete("/subscriptions/{subscription_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/subscriptions/{subscription_id}", status_code=http_status.HTTP_204_NO_CONTENT
+)
 async def delete_webhook_subscription(
     subscription_id: int, db: Session = Depends(get_db)
 ):
