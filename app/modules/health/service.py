@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 import sqlalchemy as sa
 from redis import Redis
 
 from app.core.settings import get_settings
-from app.modules.health.models import ServiceStatus, ComponentStatus
+from app.modules.health.models import ComponentStatus, ServiceStatus
 
 settings = get_settings()
 
@@ -13,21 +14,21 @@ class HealthService:
     """
     Service for health and readiness checks.
     """
-    
+
     @staticmethod
     def get_version() -> str:
         """
         Get the application version.
         """
         return settings.VERSION
-    
+
     @staticmethod
     def get_timestamp() -> str:
         """
         Get the current timestamp in ISO format.
         """
         return datetime.utcnow().isoformat()
-    
+
     @staticmethod
     async def check_database(engine) -> ComponentStatus:
         """
@@ -37,19 +38,15 @@ class HealthService:
             # Execute a simple query to check connectivity
             with engine.connect() as conn:
                 conn.execute(sa.text("SELECT 1"))
-            
+
             return ComponentStatus(
-                name="database",
-                status=ServiceStatus.OK,
-                details={"type": "postgresql"}
+                name="database", status=ServiceStatus.OK, details={"type": "postgresql"}
             )
         except Exception as e:
             return ComponentStatus(
-                name="database",
-                status=ServiceStatus.ERROR,
-                error=str(e)
+                name="database", status=ServiceStatus.ERROR, error=str(e)
             )
-    
+
     @staticmethod
     async def check_redis(redis_client: Redis) -> ComponentStatus:
         """
@@ -58,29 +55,27 @@ class HealthService:
         try:
             # Execute a simple PING command
             redis_client.ping()
-            
+
             return ComponentStatus(
-                name="redis",
-                status=ServiceStatus.OK,
-                details={"type": "redis"}
+                name="redis", status=ServiceStatus.OK, details={"type": "redis"}
             )
         except Exception as e:
             return ComponentStatus(
-                name="redis",
-                status=ServiceStatus.ERROR,
-                error=str(e)
+                name="redis", status=ServiceStatus.ERROR, error=str(e)
             )
-    
+
     @classmethod
-    async def check_all_components(cls, engine, redis_client: Redis) -> List[ComponentStatus]:
+    async def check_all_components(
+        cls, engine, redis_client: Redis
+    ) -> List[ComponentStatus]:
         """
         Check all components.
         """
         db_status = await cls.check_database(engine)
         redis_status = await cls.check_redis(redis_client)
-        
+
         return [db_status, redis_status]
-    
+
     @classmethod
     def get_overall_status(cls, components: List[ComponentStatus]) -> ServiceStatus:
         """
@@ -88,11 +83,11 @@ class HealthService:
         """
         if any(component.status == ServiceStatus.ERROR for component in components):
             return ServiceStatus.ERROR
-        
+
         if any(component.status == ServiceStatus.WARNING for component in components):
             return ServiceStatus.WARNING
-        
+
         if all(component.status == ServiceStatus.OK for component in components):
             return ServiceStatus.OK
-        
+
         return ServiceStatus.UNKNOWN

@@ -2,6 +2,7 @@
 Tests for the health module.
 """
 from fastapi.testclient import TestClient
+
 from app.modules.health.models import ServiceStatus
 
 
@@ -20,7 +21,7 @@ def test_health_check(client):
 def test_readiness_check(client):
     """
     Test the readiness check endpoint.
-    
+
     Note: This test will pass because we're using mock dependencies.
     In a real environment, this would check actual database and Redis connectivity.
     """

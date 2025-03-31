@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.engine import Engine
 from redis import Redis
+from sqlalchemy.engine import Engine
 
-from app.db.session import engine
-from app.db.redis import get_redis
 from app.core.settings import get_settings
+from app.db.redis import get_redis
+from app.db.session import engine
 from app.modules.health.models import HealthCheck, ReadinessCheck, ServiceStatus
 from app.modules.health.service import HealthService
 
@@ -20,7 +20,7 @@ async def health_check():
     return HealthCheck(
         status=ServiceStatus.OK,
         version=HealthService.get_version(),
-        timestamp=HealthService.get_timestamp()
+        timestamp=HealthService.get_timestamp(),
     )
 
 
@@ -31,12 +31,12 @@ async def readiness_check(redis_client: Redis = Depends(get_redis)):
     """
     components = await HealthService.check_all_components(engine, redis_client)
     overall_status = HealthService.get_overall_status(components)
-    
+
     return ReadinessCheck(
         status=overall_status,
         version=HealthService.get_version(),
         timestamp=HealthService.get_timestamp(),
-        components=components
+        components=components,
     )
 
 
@@ -44,7 +44,7 @@ async def readiness_check(redis_client: Redis = Depends(get_redis)):
 async def metrics():
     """
     Prometheus metrics endpoint.
-    
+
     Note: In a production setup, this would be implemented using
     prometheus-fastapi-instrumentator or a similar library.
     """

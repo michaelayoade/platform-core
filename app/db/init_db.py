@@ -1,16 +1,13 @@
-from sqlalchemy.orm import Session
 import logging
 
-from app.db.session import engine, Base, SessionLocal
-from app.core.settings import get_settings
+from sqlalchemy.orm import Session
 
-# Import all models to ensure they are registered with SQLAlchemy
-from app.modules.config.models import ConfigScope, ConfigItem, ConfigHistory
-from app.modules.audit.models import AuditLog
-from app.modules.feature_flags.models import FeatureFlag
-from app.modules.logging.models import LogEntry
-from app.modules.webhooks.models import WebhookEndpoint, WebhookSubscription, WebhookDelivery
-from app.modules.notifications.models import Notification
+from app.core.settings import get_settings
+from app.db.session import Base, SessionLocal, engine
+from app.modules.audit.models import AuditLog  # noqa: F401
+from app.modules.feature_flags.models import FeatureFlag, FeatureFlagSegment  # noqa: F401
+from app.modules.logging.models import LogEntry  # noqa: F401
+from app.modules.notifications.models import Notification  # noqa: F401
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -23,8 +20,11 @@ def init_db() -> None:
     try:
         # Create tables
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
-        
+        logger.info(
+            "Database tables created successfully. "
+            f"Database URL: {settings.SQLALCHEMY_DATABASE_URI.replace('postgresql://', '').split('@')[1]}"
+        )
+
         # Initialize default data if needed
         db = SessionLocal()
         try:
@@ -32,7 +32,10 @@ def init_db() -> None:
         finally:
             db.close()
     except Exception as e:
-        logger.error(f"Error initializing database: {e}")
+        logger.error(
+            f"Error initializing database: {e}. "
+            "If your models have changed, you might need to run migrations."
+        )
         raise
 
 
@@ -47,38 +50,38 @@ def init_default_data(db: Session) -> None:
         if not scope:
             scope = ConfigScope(
                 name=scope_name,
-                description=f"Default {scope_name} configuration scope"
+                description=f"Default {scope_name} configuration scope",
             )
             db.add(scope)
-    
+
     # Create default feature flags if they don't exist
     default_flags = [
         {
             "key": "enable_webhooks",
             "name": "Enable Webhooks",
             "description": "Enable webhook dispatching functionality",
-            "enabled": True
+            "enabled": True,
         },
         {
             "key": "enable_notifications",
             "name": "Enable Notifications",
             "description": "Enable notification triggering functionality",
-            "enabled": True
+            "enabled": True,
         },
         {
             "key": "enable_audit_logging",
             "name": "Enable Audit Logging",
             "description": "Enable audit logging for sensitive actions",
-            "enabled": True
-        }
+            "enabled": True,
+        },
     ]
-    
+
     for flag_data in default_flags:
         flag = db.query(FeatureFlag).filter(FeatureFlag.key == flag_data["key"]).first()
         if not flag:
             flag = FeatureFlag(**flag_data)
             db.add(flag)
-    
+
     # Commit all changes
     db.commit()
     logger.info("Default data initialized successfully")

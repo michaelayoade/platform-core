@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
+
 
 def serialize_datetime(obj: Any) -> Any:
     """
@@ -10,11 +11,13 @@ def serialize_datetime(obj: Any) -> Any:
         return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
 
+
 def json_dumps(obj: Any) -> str:
     """
     Serialize object to JSON string, handling datetime objects.
     """
     return json.dumps(obj, default=serialize_datetime)
+
 
 def json_serializer(obj: Any) -> Any:
     """
@@ -25,6 +28,7 @@ def json_serializer(obj: Any) -> Any:
         return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
 
+
 def safe_parse_json(json_str: str, default: Any = None) -> Any:
     """
     Safely parse JSON string, returning default value if parsing fails.
@@ -33,6 +37,7 @@ def safe_parse_json(json_str: str, default: Any = None) -> Any:
         return json.loads(json_str)
     except (json.JSONDecodeError, TypeError):
         return default if default is not None else {}
+
 
 def get_client_ip(request) -> str:
     """

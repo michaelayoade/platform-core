@@ -7,17 +7,16 @@ This script runs scheduled tasks such as:
 - Retrying failed webhook deliveries
 - Pruning old log entries
 """
+import argparse
 import asyncio
 import logging
-import argparse
 import sys
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
+from app.modules.logging.service import LoggingService
 from app.modules.notifications.service import NotificationsService
 from app.modules.webhooks.service import WebhooksService
-from app.modules.logging.service import LoggingService
 
 # Configure logging
 logging.basicConfig(
@@ -56,7 +55,7 @@ async def retry_failed_webhooks():
 async def prune_old_logs(days: int = 30):
     """
     Prune log entries older than the specified number of days.
-    
+
     Args:
         days: Number of days to keep logs for
     """
@@ -64,21 +63,21 @@ async def prune_old_logs(days: int = 30):
     db = SessionLocal()
     try:
         cutoff_date = datetime.utcnow() - timedelta(days=days)
-        
+
         # Create query params with the cutoff date
         from app.modules.logging.models import LogQueryParams
+
         query_params = LogQueryParams(
-            end_time=cutoff_date,
-            limit=10000  # Set a high limit to delete in batches
+            end_time=cutoff_date, limit=10000  # Set a high limit to delete in batches
         )
-        
+
         # Get old logs
         old_logs = await LoggingService.get_log_entries(db, query_params)
-        
+
         # Delete old logs
         for log in old_logs:
             db.delete(log)
-        
+
         db.commit()
         logger.info(f"Deleted {len(old_logs)} log entries older than {days} days")
     except Exception as e:
@@ -90,14 +89,14 @@ async def prune_old_logs(days: int = 30):
 async def run_all_tasks(log_retention_days: int = 30):
     """Run all maintenance tasks."""
     logger.info("Starting all maintenance tasks")
-    
+
     # Run tasks concurrently
     await asyncio.gather(
         clean_expired_notifications(),
         retry_failed_webhooks(),
-        prune_old_logs(log_retention_days)
+        prune_old_logs(log_retention_days),
     )
-    
+
     logger.info("All maintenance tasks completed")
 
 
@@ -109,17 +108,17 @@ def main():
         type=str,
         choices=["all", "clean-notifications", "retry-webhooks", "prune-logs"],
         default="all",
-        help="Task to run"
+        help="Task to run",
     )
     parser.add_argument(
         "--log-retention-days",
         type=int,
         default=30,
-        help="Number of days to keep logs for"
+        help="Number of days to keep logs for",
     )
-    
+
     args = parser.parse_args()
-    
+
     # Run the specified task
     if args.task == "all":
         asyncio.run(run_all_tasks(args.log_retention_days))

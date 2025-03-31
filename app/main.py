@@ -1,8 +1,21 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
-import os
-from prometheus_fastapi_instrumentator import Instrumentator
 import logging
+from prometheus_fastapi_instrumentator import Instrumentator
+import os
+
+# Import routers for different modules
+from app.modules.audit.router import router as audit_router
+from app.modules.config.router import router as config_router
+from app.modules.feature_flags.router import router as feature_flags_router
+from app.modules.health.router import router as health_router
+from app.modules.logging.router import router as logging_router
+from app.modules.notifications.router import router as notifications_router
+from app.modules.webhooks.router import router as webhooks_router
+
+# Import settings and DB initialization
+from app.core.settings import get_settings
+from app.db.init_db import init_db
 
 # Configure logging
 logging.basicConfig(
@@ -13,19 +26,6 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
-
-# Import routers
-from app.modules.health.router import router as health_router
-from app.modules.config.router import router as config_router
-from app.modules.audit.router import router as audit_router
-from app.modules.feature_flags.router import router as feature_flags_router
-from app.modules.logging.router import router as logging_router
-from app.modules.webhooks.router import router as webhooks_router
-from app.modules.notifications.router import router as notifications_router
-
-# Import settings
-from app.core.settings import get_settings
-from app.db.init_db import init_db
 
 settings = get_settings()
 
@@ -98,6 +98,7 @@ app = FastAPI(
 # Add CORS middleware if needed
 if settings.BACKEND_CORS_ORIGINS:
     from fastapi.middleware.cors import CORSMiddleware
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
@@ -106,14 +107,16 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers=["*"],
     )
 
+
 # Setup Prometheus instrumentation
 Instrumentator().instrument(app).expose(app)
+
 
 @app.get("/", tags=["Root"])
 async def read_root():
     """
     Root endpoint providing a simple welcome message.
-    
+
     Returns:
         dict: A welcome message
     """
@@ -121,24 +124,43 @@ async def read_root():
         "message": "Welcome to the Dotmac Platform Core API",
         "version": settings.VERSION,
         "docs_url": "/docs",
-        "openapi_url": "/openapi.json"
+        "openapi_url": "/openapi.json",
     }
+
 
 # Include routers
 app.include_router(health_router, prefix="/health", tags=["Health"])
-app.include_router(config_router, prefix="/config", tags=["Config"])
-app.include_router(audit_router, prefix="/audit", tags=["Audit"])
-app.include_router(feature_flags_router, prefix="/feature-flags", tags=["Feature Flags"])
-app.include_router(logging_router, prefix="/logs", tags=["Logging"])
-app.include_router(webhooks_router, prefix="/webhooks", tags=["Webhooks"])
-app.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])
+
+app.include_router(
+    audit_router, prefix=f"{settings.API_V1_STR}/audit", tags=["Audit Logs"]
+)
+app.include_router(
+    config_router, prefix=f"{settings.API_V1_STR}/config", tags=["Configuration"]
+)
+app.include_router(
+    feature_flags_router,
+    prefix=f"{settings.API_V1_STR}/feature-flags",
+    tags=["Feature Flags"],
+)
+app.include_router(
+    logging_router, prefix=f"{settings.API_V1_STR}/logs", tags=["Logging"]
+)
+app.include_router(
+    notifications_router,
+    prefix=f"{settings.API_V1_STR}/notifications",
+    tags=["Notifications"],
+)
+app.include_router(
+    webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["Webhooks"]
+)
+
 
 @app.on_event("startup")
 async def startup_event():
     """
     Initialize components on application startup.
     """
-    logger.info("Initializing application...")
+    logger.info("Starting up application...")
     try:
         # Initialize database
         init_db()
@@ -149,6 +171,7 @@ async def startup_event():
         # import sys
         # sys.exit(1)
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """
@@ -156,9 +179,12 @@ async def shutdown_event():
     """
     logger.info("Shutting down application...")
     # Add cleanup code here if needed
+    logger.info("Platform Core service finished shutting down.")
+
 
 if __name__ == "__main__":
     import uvicorn
+
     # Configuration for Uvicorn can be loaded from environment variables
     # or a config file for production deployments.
     host = os.getenv("HOST", "0.0.0.0")

@@ -1,184 +1,173 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from redis import Redis
+import logging
+from typing import List, Optional, Dict, Any
 
+import redis
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from sqlalchemy.orm import Session
+
+from app.db.redis import get_redis_client
 from app.db.session import get_db
-from app.db.redis import get_redis
-from app.modules.feature_flags.models import (
-    FeatureFlagCreate, FeatureFlagUpdate, FeatureFlagResponse,
-    FeatureFlagCheck, FeatureFlagCheckResponse
+
+from .models import (
+    FeatureFlag,
+    FeatureFlagCreate,
+    FeatureFlagResponse,
+    FeatureFlagUpdate,
 )
-from app.modules.feature_flags.service import FeatureFlagService
-from app.modules.audit.service import AuditService
-from app.utils.common import get_client_ip
+from .service import FeatureFlagsService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+FEATURE_FLAG_TAG = "Feature Flags"
 
 
-@router.post("/", response_model=FeatureFlagResponse, status_code=status.HTTP_201_CREATED)
+# --- Feature Flag Endpoints ---
+
+
+@router.post(
+    "/",
+    response_model=FeatureFlagResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Feature Flag",
+    description="Creates a new feature flag.",
+    tags=[FEATURE_FLAG_TAG],
+)
 async def create_feature_flag(
-    flag: FeatureFlagCreate,
-    request: Request,
+    flag_in: FeatureFlagCreate,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis)
-):
-    """
-    Create a new feature flag.
-    """
-    # In a real app, we would extract the user ID from the JWT token
-    # For now, we'll use the client IP as a placeholder
-    user_id = get_client_ip(request)
-    
-    feature_flag = await FeatureFlagService.create_feature_flag(db, flag)
-    
-    # Cache the feature flag
-    await FeatureFlagService.cache_feature_flag(redis, flag.key, flag.enabled)
-    
-    # Record audit log
-    await AuditService.record_feature_flag_change(
-        db, user_id, flag.key, None, flag.enabled, "create", user_id
-    )
-    
-    return feature_flag
+    redis_client: redis.Redis = Depends(get_redis_client),
+) -> FeatureFlagResponse:
+    """Create a new feature flag definition."""
+    try:
+        flag = FeatureFlagsService.create_feature_flag(db, redis_client, flag_in=flag_in)
+    except ValueError as e:
+        logger.warning(f"Failed to create feature flag '{flag_in.key}': {e}")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    return flag
 
 
-@router.get("/", response_model=List[FeatureFlagResponse])
-async def get_feature_flags(
+@router.get(
+    "/",
+    response_model=List[FeatureFlagResponse],
+    summary="List Feature Flags",
+    description="Retrieves a list of all defined feature flags.",
+    tags=[FEATURE_FLAG_TAG],
+)
+async def list_feature_flags(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """
-    Get all feature flags.
-    """
-    return await FeatureFlagService.get_feature_flags(db, skip, limit)
+    db: Session = Depends(get_db),
+) -> List[FeatureFlagResponse]:
+    """Retrieve all feature flags with pagination."""
+    flags = FeatureFlagsService.get_feature_flags(db, skip=skip, limit=limit)
+    return flags
 
 
-@router.get("/{key}", response_model=FeatureFlagResponse)
+@router.get(
+    "/{flag_key}",
+    response_model=FeatureFlagResponse,
+    summary="Get Feature Flag by Key",
+    description="Retrieves details of a specific feature flag by its key.",
+    tags=[FEATURE_FLAG_TAG],
+)
 async def get_feature_flag(
-    key: str,
-    db: Session = Depends(get_db)
-):
-    """
-    Get a feature flag by key.
-    """
-    feature_flag = await FeatureFlagService.get_feature_flag_by_key(db, key)
-    if not feature_flag:
+    flag_key: str,
+    db: Session = Depends(get_db),
+) -> FeatureFlagResponse:
+    """Retrieve a single feature flag definition."""
+    flag = FeatureFlagsService.get_feature_flag_by_key(db, flag_key)
+    if not flag:
+        logger.warning(f"Feature flag with key '{flag_key}' not found.")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Feature flag with key '{key}' not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
         )
-    return feature_flag
+    return flag
 
 
-@router.put("/{key}", response_model=FeatureFlagResponse)
+@router.put(
+    "/{flag_key}",
+    response_model=FeatureFlagResponse,
+    summary="Update Feature Flag",
+    description="Updates an existing feature flag.",
+    tags=[FEATURE_FLAG_TAG],
+)
 async def update_feature_flag(
-    key: str,
-    flag: FeatureFlagUpdate,
-    request: Request,
+    flag_key: str,
+    flag_in: FeatureFlagUpdate,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis)
-):
-    """
-    Update a feature flag.
-    """
-    # In a real app, we would extract the user ID from the JWT token
-    # For now, we'll use the client IP as a placeholder
-    user_id = get_client_ip(request)
-    
-    # Get current value for audit log
-    current_flag = await FeatureFlagService.get_feature_flag_by_key(db, key)
-    if not current_flag:
+    redis_client: redis.Redis = Depends(get_redis_client),
+) -> FeatureFlagResponse:
+    """Update an existing feature flag's properties."""
+    flag = FeatureFlagsService.update_feature_flag(
+        db, redis_client, flag_key=flag_key, flag_update=flag_in
+    )
+    if not flag:
+        logger.warning(f"Feature flag with key '{flag_key}' not found for update.")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Feature flag with key '{key}' not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
         )
-    
-    old_enabled = current_flag.enabled
-    
-    # Update the feature flag
-    feature_flag = await FeatureFlagService.update_feature_flag(db, key, flag)
-    
-    # Update cache if enabled status changed
-    if flag.enabled is not None:
-        await FeatureFlagService.cache_feature_flag(redis, key, feature_flag.enabled)
-    
-    # Record audit log if enabled status changed
-    if flag.enabled is not None and flag.enabled != old_enabled:
-        await AuditService.record_feature_flag_change(
-            db, user_id, key, old_enabled, feature_flag.enabled, "update", user_id
-        )
-    
-    return feature_flag
+    return flag
 
 
-@router.delete("/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{flag_key}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Feature Flag",
+    description="Deletes a feature flag and its associated segments.",
+    tags=[FEATURE_FLAG_TAG],
+)
 async def delete_feature_flag(
-    key: str,
-    request: Request,
+    flag_key: str,
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis)
-):
-    """
-    Delete a feature flag.
-    """
-    # In a real app, we would extract the user ID from the JWT token
-    # For now, we'll use the client IP as a placeholder
-    user_id = get_client_ip(request)
-    
-    # Get current value for audit log
-    current_flag = await FeatureFlagService.get_feature_flag_by_key(db, key)
-    if not current_flag:
+    redis_client: redis.Redis = Depends(get_redis_client),
+) -> None:
+    """Delete a feature flag and its segments."""
+    deleted = FeatureFlagsService.delete_feature_flag(db, redis_client, flag_key=flag_key)
+    if not deleted:
+        logger.warning(f"Feature flag with key '{flag_key}' not found for deletion.")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Feature flag with key '{key}' not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
         )
-    
-    # Delete the feature flag
-    await FeatureFlagService.delete_feature_flag(db, key)
-    
-    # Invalidate cache
-    await FeatureFlagService.invalidate_feature_flag_cache(redis, key)
-    
-    # Record audit log
-    await AuditService.record_feature_flag_change(
-        db, user_id, key, current_flag.enabled, None, "delete", user_id
-    )
+    return None  # Return 204 No Content
 
 
-@router.post("/{key}/check", response_model=FeatureFlagCheckResponse)
-async def check_feature_flag(
-    key: str,
-    check: FeatureFlagCheck,
+@router.get(
+    "/evaluate/{flag_key}",
+    response_model=bool,
+    summary="Evaluate Feature Flag",
+    description="Evaluates a feature flag for a given context (e.g., user ID, group).",
+    tags=[FEATURE_FLAG_TAG],
+)
+async def evaluate_feature_flag(
+    flag_key: str,
+    user_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+    # Add other context attributes as needed (e.g., tenant_id, region)
     db: Session = Depends(get_db),
-    redis: Redis = Depends(get_redis)
-):
-    """
-    Check if a feature flag is enabled for a specific user.
-    """
-    # Try to get from cache first
-    cached_value = await FeatureFlagService.get_cached_feature_flag(redis, key)
-    
-    if cached_value is not None:
-        # If cached value is False, return immediately
-        if not cached_value:
-            return FeatureFlagCheckResponse(key=key, enabled=False)
-        
-        # If cached value is True, we need to check user targeting rules
-        enabled = await FeatureFlagService.is_enabled_for_user(
-            db, key, check.user_id, check.groups, check.attributes
+    redis_client: redis.Redis = Depends(get_redis_client),
+) -> bool:
+    """Evaluate if a feature flag is enabled for the given context."""
+    context = {"user_id": user_id, "group_id": group_id}
+    # Remove None values from context
+    context = {k: v for k, v in context.items() if v is not None}
+
+    try:
+        is_enabled = FeatureFlagsService.is_feature_enabled(
+            db, redis_client, flag_key=flag_key, context=context
         )
-        return FeatureFlagCheckResponse(key=key, enabled=enabled)
-    
-    # Not in cache, check database
-    enabled = await FeatureFlagService.is_enabled_for_user(
-        db, key, check.user_id, check.groups, check.attributes
-    )
-    
-    # Cache the global flag status (not the user-specific result)
-    feature_flag = await FeatureFlagService.get_feature_flag_by_key(db, key)
-    if feature_flag:
-        await FeatureFlagService.cache_feature_flag(redis, key, feature_flag.enabled)
-    
-    return FeatureFlagCheckResponse(key=key, enabled=enabled)
+    except ValueError as e:
+        logger.warning(f"Could not evaluate feature flag '{flag_key}': {e}")
+        # Return default state (usually False) or raise specific error?
+        # For now, assume flag doesn't exist or error means disabled.
+        # Consider raising 404 if flag not found is the specific error.
+        if "not found" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
+            )
+        # For other errors (e.g., Redis down), a 500 might be appropriate
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error evaluating feature flag"
+        )
+    return is_enabled
