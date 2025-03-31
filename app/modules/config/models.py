@@ -2,11 +2,12 @@ from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy import (Column, DateTime, ForeignKey, Integer, String, Text,
+                        UniqueConstraint)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.db.base import Base  # Base declarative_base()
 from app.db.base_model import BaseModel as DBBaseModel
-from app.db.session import Base
 
 
 class ConfigScope(Base, DBBaseModel):
@@ -14,11 +15,12 @@ class ConfigScope(Base, DBBaseModel):
     Configuration scope model (e.g., 'auth', 'billing').
     """
 
-    name = Column(String(100), unique=True, index=True, nullable=False)
-    description = Column(Text, nullable=True)
+    # Use mapped_column for explicit column definitions
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Relationships
-    configs = relationship(
+    # Relationship - Mapped[List[...]] is standard for one-to-many
+    configs: Mapped[List["ConfigItem"]] = relationship(
         "ConfigItem", back_populates="scope", cascade="all, delete-orphan"
     )
 
@@ -28,18 +30,18 @@ class ConfigItem(Base, DBBaseModel):
     Configuration item model.
     """
 
-    key = Column(String(255), index=True, nullable=False)
-    value = Column(Text, nullable=False)
-    description = Column(Text, nullable=True)
-    version = Column(Integer, default=1, nullable=False)
-    is_secret = Column(Integer, default=0, nullable=False)  # 0=false, 1=true
+    key: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    is_secret: Mapped[bool] = mapped_column(Integer, default=0, nullable=False)  # 0=false, 1=true
 
-    # Foreign keys
-    scope_id = Column(Integer, ForeignKey("configscope.id"), nullable=False)
+    # Foreign keys - use Mapped[int] for the type, keep ForeignKey in mapped_column
+    scope_id: Mapped[int] = mapped_column(ForeignKey("configscope.id"), nullable=False)
 
     # Relationships
-    scope: ConfigScope = relationship("ConfigScope", back_populates="configs")
-    history: List["ConfigHistory"] = relationship(
+    scope: Mapped["ConfigScope"] = relationship("ConfigScope", back_populates="configs")
+    history: Mapped[List["ConfigHistory"]] = relationship(
         "ConfigHistory", back_populates="config_item", cascade="all, delete-orphan"
     )
 
@@ -52,15 +54,15 @@ class ConfigHistory(Base, DBBaseModel):
     Configuration history model for tracking changes.
     """
 
-    value = Column(Text, nullable=False)
-    version = Column(Integer, nullable=False)
-    changed_by = Column(String(255), nullable=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    changed_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # Foreign keys
-    config_id = Column(Integer, ForeignKey("configitem.id"), nullable=False)
+    # Foreign Key
+    config_id: Mapped[int] = mapped_column(ForeignKey("configitem.id"), nullable=False)
 
-    # Relationships
-    config_item: "ConfigItem" = relationship("ConfigItem", back_populates="history")
+    # Relationship
+    config_item: Mapped["ConfigItem"] = relationship("ConfigItem", back_populates="history")
 
 
 # Pydantic models for API
