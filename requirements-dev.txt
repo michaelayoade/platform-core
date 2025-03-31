@@ -2,6 +2,7 @@
 pytest
 pytest-asyncio
 pytest-mock
+fakeredis
 httpx # For AsyncClient
 fakeredis[hiredis] # For mocking Redis
 

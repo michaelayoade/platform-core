@@ -24,6 +24,7 @@ jobs:
           # Pin versions to match pre-commit config
           pip install flake8==6.1.0 black==24.3.0 isort==5.12.0
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt # Install dev dependencies
 
       - name: Run flake8
         run: flake8 app tests
