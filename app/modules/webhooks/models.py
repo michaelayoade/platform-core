@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import Field, HttpUrl
+from pydantic import ConfigDict, Field, HttpUrl
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -137,6 +137,8 @@ class WebhookEndpointBase(PydanticBaseModel):
     retry_count: Optional[int] = Field(3, ge=0, le=10, description="Number of retries (0-10)")
     timeout_seconds: Optional[int] = Field(5, ge=1, le=30, description="Timeout in seconds (1-30)")
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class WebhookEndpointCreate(WebhookEndpointBase):
     pass
@@ -169,8 +171,11 @@ class WebhookEndpointResponse(WebhookEndpointBase):
     updated_at: datetime
     created_by: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WebhookEndpointListResponse(WebhookEndpointResponse):
+    secret: Optional[str] = Field(None, exclude=True)  # Explicitly exclude secret
 
 
 class WebhookSubscriptionResponse(WebhookSubscriptionBase):
@@ -178,8 +183,7 @@ class WebhookSubscriptionResponse(WebhookSubscriptionBase):
     endpoint_id: int
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WebhookDeliveryResponse(PydanticBaseModel):
@@ -194,8 +198,7 @@ class WebhookDeliveryResponse(PydanticBaseModel):
     completed_at: Optional[datetime] = None
     next_retry_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WebhookTestRequest(PydanticBaseModel):

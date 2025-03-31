@@ -1,0 +1,11 @@
+# Test Dependencies
+pytest
+pytest-asyncio
+pytest-mock
+httpx # For AsyncClient
+fakeredis[hiredis] # For mocking Redis
+
+# Linters & Formatters
+black
+isort
+ruff

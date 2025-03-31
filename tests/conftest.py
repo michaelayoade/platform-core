@@ -2,14 +2,19 @@
 Test configuration for the Platform Core service.
 """
 
-from unittest.mock import MagicMock
+# import os # Removed os import
+# import sys # Removed sys import
+# from typing import AsyncGenerator, Generator # Removed typing imports
+# Remove unused MagicMock import
 
-import pytest
+import fakeredis.aioredis  # Import fakeredis
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.db.base_model import BaseModel
 from app.db.redis import get_redis
 from app.db.session import Base, get_db
 from app.main import app
@@ -28,13 +33,14 @@ engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-@pytest.fixture(scope="function")
-def db_session():
+@pytest_asyncio.fixture(scope="function")
+async def db_session():
     """
     Create a fresh database for each test.
     """
     # Create tables
     Base.metadata.create_all(bind=engine)
+    BaseModel.metadata.create_all(bind=engine)
 
     # Create session
     db = TestingSessionLocal()
@@ -45,10 +51,11 @@ def db_session():
 
     # Drop tables
     Base.metadata.drop_all(bind=engine)
+    BaseModel.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture(scope="function")
-def client(db_session):
+@pytest_asyncio.fixture(scope="function")
+async def client(db_session):
     """
     Create a test client for the FastAPI application.
     """
@@ -61,13 +68,11 @@ def client(db_session):
             pass
 
     # Override the get_redis dependency
-    mock_redis = MagicMock()
-
     def override_get_redis():
-        try:
-            yield mock_redis
-        finally:
-            pass
+        """Override Redis dependency to use fakeredis for tests."""
+        # Use FakeRedis for async tests
+        fake_redis_instance = fakeredis.aioredis.FakeRedis()
+        return fake_redis_instance
 
     # Apply overrides
     app.dependency_overrides[get_db] = override_get_db

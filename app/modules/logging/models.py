@@ -5,64 +5,47 @@ Models for the logging module.
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Column, DateTime, Index, Integer, String, Text
-from sqlalchemy.sql import func
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import ConfigDict, Field
+from sqlalchemy import JSON, DateTime, Index, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base_model import Base
+from app.db.base_model import BaseModel
 
 
-class LogEntry(Base):
+class LogEntry(BaseModel):
     """
     Model for storing structured log entries in the database.
     """
 
     __tablename__ = "log_entries"
 
-    id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=func.now(), index=True)
-    level = Column(String(10), index=True)  # INFO, WARNING, ERROR, DEBUG, etc.
-    service = Column(String(100), index=True)  # Service or component name
-    message = Column(Text)
-    context = Column(JSON, nullable=True)  # Additional context data
-    trace_id = Column(String(100), nullable=True, index=True)  # For distributed tracing
-    span_id = Column(String(100), nullable=True)  # For distributed tracing
-    user_id = Column(String(100), nullable=True, index=True)  # User ID if applicable
-    ip_address = Column(String(50), nullable=True)  # Client IP address if applicable
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), index=True)
+    level: Mapped[str] = mapped_column(String(10), index=True)  # INFO, WARNING, ERROR, DEBUG, etc.
+    service: Mapped[str] = mapped_column(String(100), index=True)  # Service or component name
+    message: Mapped[str] = mapped_column(Text)
+    context: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)  # Additional context data
+    trace_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)  # For distributed tracing
+    span_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # For distributed tracing
+    user_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)  # User ID if applicable
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # Client IP address if applicable
 
     # Create indexes for common query patterns
     __table_args__ = (
-        Index("idx_logs_timestamp_level", timestamp, level),
-        Index("idx_logs_service_level", service, level),
-        Index("idx_logs_trace_id", trace_id),
+        Index("ix_log_entries_timestamp_level", "timestamp", "level"),
+        Index("ix_log_entries_service_timestamp", "service", "timestamp"),
     )
 
 
 # Pydantic models for API
-class LogEntryCreate(BaseModel):
+class LogEntryBase(PydanticBaseModel):
     """
-    Schema for creating a new log entry.
-    """
-
-    level: str = Field(..., description="Log level (INFO, WARNING, ERROR, DEBUG, etc.)")
-    service: str = Field(..., description="Service or component name")
-    message: str = Field(..., description="Log message")
-    context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
-    trace_id: Optional[str] = Field(None, description="Trace ID for distributed tracing")
-    span_id: Optional[str] = Field(None, description="Span ID for distributed tracing")
-    user_id: Optional[str] = Field(None, description="User ID if applicable")
-    ip_address: Optional[str] = Field(None, description="Client IP address if applicable")
-
-
-class LogEntryResponse(BaseModel):
-    """
-    Schema for log entry response.
+    Base schema for log entries.
     """
 
-    id: int
-    timestamp: datetime
-    level: str
-    service: str
+    level: str = Field(..., max_length=10)
+    service: str = Field(..., max_length=100)
     message: str
     context: Optional[Dict[str, Any]] = None
     trace_id: Optional[str] = None
@@ -70,11 +53,27 @@ class LogEntryResponse(BaseModel):
     user_id: Optional[str] = None
     ip_address: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+
+class LogEntryCreate(LogEntryBase):
+    """
+    Schema for creating a new log entry.
+    """
+
+    pass
 
 
-class LogQueryParams(BaseModel):
+class LogEntryResponse(LogEntryBase):
+    """
+    Schema for log entry response.
+    """
+
+    id: int
+    timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LogQueryParams(PydanticBaseModel):
     """
     Schema for log query parameters.
     """

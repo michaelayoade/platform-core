@@ -2,6 +2,7 @@
 Router for the logging module.
 """
 
+# import json # Removed json import
 from datetime import datetime
 from typing import List, Optional
 
@@ -11,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.logging.models import LogEntryCreate, LogEntryResponse, LogQueryParams
 from app.modules.logging.service import LoggingService
-from app.utils.common import parse_datetime
 
 router = APIRouter()
 
@@ -39,16 +39,11 @@ async def get_log_entries(
     """
     Get log entries with optional filtering.
     """
-    # Parse datetime strings if provided
-    parsed_start_time = parse_datetime(start_time) if start_time else None
-    parsed_end_time = parse_datetime(end_time) if end_time else None
-
-    # Create query params object
     query_params = LogQueryParams(
         level=level,
         service=service,
-        start_time=parsed_start_time,
-        end_time=parsed_end_time,
+        start_time=start_time,
+        end_time=end_time,
         trace_id=trace_id,
         user_id=user_id,
         limit=limit,
@@ -84,26 +79,20 @@ async def export_logs_to_json(
     """
     Export logs to JSON format.
     """
-    # Parse datetime strings if provided
-    parsed_start_time = parse_datetime(start_time) if start_time else None
-    parsed_end_time = parse_datetime(end_time) if end_time else None
-
-    # Create query params object
     query_params = LogQueryParams(
         level=level,
         service=service,
-        start_time=parsed_start_time,
-        end_time=parsed_end_time,
+        start_time=start_time,
+        end_time=end_time,
         trace_id=trace_id,
         user_id=user_id,
         limit=limit,
         offset=offset,
     )
 
-    json_data = await LoggingService.export_logs_to_json(db, query_params)
+    logs_json = await LoggingService.export_logs_to_json(db, query_params)
 
-    # Return as downloadable JSON file
-    response = Response(content=json_data, media_type="application/json")
+    response = Response(content=logs_json, media_type="application/json")
     response.headers["Content-Disposition"] = (
         f"attachment; filename=logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     )
@@ -119,8 +108,4 @@ async def get_log_statistics(
     """
     Get statistics about log entries.
     """
-    # Parse datetime strings if provided
-    parsed_start_time = parse_datetime(start_time) if start_time else None
-    parsed_end_time = parse_datetime(end_time) if end_time else None
-
-    return await LoggingService.get_log_statistics(db, parsed_start_time, parsed_end_time)
+    return await LoggingService.get_log_statistics(db, start_time=start_time, end_time=end_time)

@@ -13,8 +13,8 @@ def test_create_notification(client, db_session):
     notification_data = {
         "title": "Test Notification",
         "message": "This is a test notification",
-        "notification_type": "SYSTEM",
-        "priority": "NORMAL",
+        "notification_type": NotificationType.SYSTEM.value,
+        "priority": NotificationPriority.MEDIUM.value,
         "recipient_id": "user123",
         "recipient_type": "user",
         "sender_id": "system",
@@ -22,7 +22,7 @@ def test_create_notification(client, db_session):
     }
 
     # Send request
-    response = client.post("/notifications/", json=notification_data)
+    response = client.post("/api/v1/notifications/", json=notification_data)
 
     # Check response
     assert response.status_code == 201
@@ -32,7 +32,7 @@ def test_create_notification(client, db_session):
     assert data["notification_type"] == notification_data["notification_type"]
     assert data["priority"] == notification_data["priority"]
     assert data["recipient_id"] == notification_data["recipient_id"]
-    assert data["status"] == "PENDING"
+    assert data["status"] == NotificationStatus.PENDING.value
 
     # Check database
     db_notification = db_session.query(Notification).filter(Notification.id == data["id"]).first()
@@ -48,7 +48,7 @@ def test_get_notifications(client, db_session):
             title=f"Test {i}",
             message=f"Test message {i}",
             notification_type=NotificationType.SYSTEM.value,
-            priority=NotificationPriority.NORMAL.value,
+            priority=NotificationPriority.MEDIUM.value,
             recipient_id="user123",
             recipient_type="user",
             sender_id="system",
@@ -57,7 +57,7 @@ def test_get_notifications(client, db_session):
     db_session.commit()
 
     # Send request
-    response = client.get("/notifications/?recipient_id=user123")
+    response = client.get("/api/v1/notifications/?recipient_id=user123")
 
     # Check response
     assert response.status_code == 200
@@ -73,7 +73,7 @@ def test_mark_as_read(client, db_session):
         title="Test",
         message="Test message",
         notification_type=NotificationType.SYSTEM.value,
-        priority=NotificationPriority.NORMAL.value,
+        priority=NotificationPriority.MEDIUM.value,
         recipient_id="user123",
         recipient_type="user",
         sender_id="system",
@@ -82,12 +82,12 @@ def test_mark_as_read(client, db_session):
     db_session.commit()
 
     # Send request
-    response = client.post(f"/notifications/{notification.id}/read")
+    response = client.post(f"/api/v1/notifications/{notification.id}/read")
 
     # Check response
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "READ"
+    assert data["status"] == NotificationStatus.READ.value
     assert data["read_at"] is not None
 
     # Check database
@@ -104,7 +104,7 @@ def test_get_unread_count(client, db_session):
             title=f"Unread {i}",
             message=f"Unread message {i}",
             notification_type=NotificationType.SYSTEM.value,
-            priority=NotificationPriority.NORMAL.value,
+            priority=NotificationPriority.MEDIUM.value,
             recipient_id="user123",
             recipient_type="user",
             sender_id="system",
@@ -116,7 +116,7 @@ def test_get_unread_count(client, db_session):
         title="Read",
         message="Read message",
         notification_type=NotificationType.SYSTEM.value,
-        priority=NotificationPriority.NORMAL.value,
+        priority=NotificationPriority.MEDIUM.value,
         recipient_id="user123",
         recipient_type="user",
         sender_id="system",
@@ -127,7 +127,7 @@ def test_get_unread_count(client, db_session):
     db_session.commit()
 
     # Send request
-    response = client.get("/notifications/count?recipient_id=user123")
+    response = client.get("/api/v1/notifications/count?recipient_id=user123")
 
     # Check response
     assert response.status_code == 200
@@ -143,7 +143,7 @@ def test_mark_all_as_read(client, db_session):
             title=f"Test {i}",
             message=f"Test message {i}",
             notification_type=NotificationType.SYSTEM.value,
-            priority=NotificationPriority.NORMAL.value,
+            priority=NotificationPriority.MEDIUM.value,
             recipient_id="user123",
             recipient_type="user",
             sender_id="system",
@@ -153,7 +153,7 @@ def test_mark_all_as_read(client, db_session):
     db_session.commit()
 
     # Send request
-    response = client.post("/notifications/read-all?recipient_id=user123")
+    response = client.post("/api/v1/notifications/read-all?recipient_id=user123")
 
     # Check response
     assert response.status_code == 200
@@ -179,7 +179,7 @@ def test_clean_expired_notifications(client, db_session):
         title="Expired",
         message="Expired message",
         notification_type=NotificationType.SYSTEM.value,
-        priority=NotificationPriority.NORMAL.value,
+        priority=NotificationPriority.MEDIUM.value,
         recipient_id="user123",
         recipient_type="user",
         sender_id="system",
@@ -192,7 +192,7 @@ def test_clean_expired_notifications(client, db_session):
         title="Active",
         message="Active message",
         notification_type=NotificationType.SYSTEM.value,
-        priority=NotificationPriority.NORMAL.value,
+        priority=NotificationPriority.MEDIUM.value,
         recipient_id="user123",
         recipient_type="user",
         sender_id="system",
@@ -202,7 +202,7 @@ def test_clean_expired_notifications(client, db_session):
     db_session.commit()
 
     # Send request
-    response = client.post("/notifications/clean-expired")
+    response = client.post("/api/v1/notifications/clean-expired")
 
     # Check response
     assert response.status_code == 200

@@ -1,13 +1,17 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 # Import settings and DB initialization
 from app.core.settings import get_settings
-from app.db.init_db import init_db
 
 # Import routers for different modules
 from app.modules.audit.router import router as audit_router
@@ -17,6 +21,7 @@ from app.modules.health.router import router as health_router
 from app.modules.logging.router import router as logging_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.webhooks.router import router as webhooks_router
+from app.utils.redis_client import RedisClient
 
 # Configure logging
 logging.basicConfig(
@@ -62,6 +67,26 @@ tags_metadata = [
     },
 ]
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage startup and shutdown events."""
+    # Startup
+    logger.info("Starting up Platform Core service...")
+    # Initialize Redis connection
+    await RedisClient.initialize()
+    logger.info("Redis client initialized.")
+    # Database initialization (optional, often handled by Alembic)
+    # logger.info("Database initialized.")
+    yield
+    # Shutdown
+    logger.info("Shutting down Platform Core service...")
+    # Close Redis connection
+    await RedisClient.close()
+    logger.info("Redis client closed.")
+    logger.info("Platform Core service finished shutting down.")
+
+
 app = FastAPI(
     title="Dotmac Platform Core",
     description="""
@@ -92,12 +117,11 @@ app = FastAPI(
         "name": "MIT",
         "url": "https://opensource.org/licenses/MIT",
     },
+    lifespan=lifespan,
 )
 
 # Add CORS middleware if needed
 if settings.BACKEND_CORS_ORIGINS:
-    from fastapi.middleware.cors import CORSMiddleware
-
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
@@ -145,31 +169,12 @@ app.include_router(
 app.include_router(webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["Webhooks"])
 
 
-@app.on_event("startup")
-async def startup_event():
-    """
-    Initialize components on application startup.
-    """
-    logger.info("Starting up application...")
-    try:
-        # Initialize database
-        init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Error during startup: {e}")
-        # In production, you might want to exit the application if initialization fails
-        # import sys
-        # sys.exit(1)
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Cleanup on application shutdown.
-    """
-    logger.info("Shutting down application...")
-    # Add cleanup code here if needed
-    logger.info("Platform Core service finished shutting down.")
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
 
 
 if __name__ == "__main__":

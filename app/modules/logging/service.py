@@ -73,16 +73,10 @@ class LoggingService:
             query = query.filter(LogEntry.user_id == query_params.user_id)
 
         # Apply time range filters
-        if query_params.start_time and query_params.end_time:
-            query = query.filter(
-                and_(
-                    LogEntry.timestamp >= query_params.start_time,
-                    LogEntry.timestamp <= query_params.end_time,
-                )
-            )
-        elif query_params.start_time:
+        if query_params.start_time:
             query = query.filter(LogEntry.timestamp >= query_params.start_time)
-        elif query_params.end_time:
+
+        if query_params.end_time:
             query = query.filter(LogEntry.timestamp <= query_params.end_time)
 
         # Order by timestamp (newest first)

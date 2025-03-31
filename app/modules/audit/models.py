@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 # Alias Pydantic's BaseModel to avoid conflict
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from sqlalchemy import JSON, String, Text
 
 # Corrected import for the base model
@@ -69,8 +69,8 @@ class AuditLogResponse(PydanticBaseModel):
     id: int
     actor_id: str
     event_type: str
-    resource_type: str
-    resource_id: str
+    resource_type: Optional[str]  # Allow optional based on ORM
+    resource_id: Optional[str]  # Allow optional based on ORM
     action: str
     old_value: Optional[str] = None
     new_value: Optional[str] = None
@@ -78,5 +78,5 @@ class AuditLogResponse(PydanticBaseModel):
     ip_address: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    # Use Pydantic V2 config
+    model_config = ConfigDict(from_attributes=True)

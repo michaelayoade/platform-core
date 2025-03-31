@@ -3,7 +3,7 @@ from typing import List, Optional
 
 # Alias Pydantic BaseModel
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -79,6 +79,8 @@ class ConfigScopeBase(PydanticBaseModel):
     name: str = Field(..., max_length=100, description="Scope name (e.g., 'auth')")
     description: Optional[str] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 # Use aliased PydanticBaseModel
 class ConfigScopeCreate(ConfigScopeBase):
@@ -89,6 +91,8 @@ class ConfigScopeCreate(ConfigScopeBase):
 class ConfigScopeUpdate(ConfigScopeBase):
     name: Optional[str] = None  # Allow partial updates
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 # Use aliased PydanticBaseModel
 class ConfigScopeResponse(ConfigScopeBase):
@@ -96,8 +100,7 @@ class ConfigScopeResponse(ConfigScopeBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Use aliased PydanticBaseModel
@@ -107,10 +110,14 @@ class ConfigItemBase(PydanticBaseModel):
     description: Optional[str] = None
     is_secret: bool = False
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 # Use aliased PydanticBaseModel
 class ConfigItemCreate(ConfigItemBase):
     scope_id: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Use aliased PydanticBaseModel
@@ -118,6 +125,8 @@ class ConfigItemUpdate(PydanticBaseModel):  # Separate base for update flexibili
     value: Optional[str] = None
     description: Optional[str] = None
     is_secret: Optional[bool] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Use aliased PydanticBaseModel
@@ -128,8 +137,7 @@ class ConfigItemResponse(ConfigItemBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Use aliased PydanticBaseModel
@@ -143,5 +151,4 @@ class ConfigHistoryResponse(PydanticBaseModel):
     is_secret: bool
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

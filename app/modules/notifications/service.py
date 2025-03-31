@@ -116,7 +116,7 @@ class NotificationsService:
             return None
 
         # Update fields
-        update_dict = update_data.dict(exclude_unset=True)
+        update_dict = update_data.model_dump(exclude_unset=True)
         for key, value in update_dict.items():
             setattr(db_notification, key, value)
 

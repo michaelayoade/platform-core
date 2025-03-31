@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 # Alias Pydantic BaseModel
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from sqlalchemy import JSON, DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -99,15 +99,21 @@ class NotificationBase(PydanticBaseModel):
     data: Optional[Dict[str, Any]] = Field(None, description="Additional data for the notification")
     action_url: Optional[str] = Field(None, description="Optional URL for action button")
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class NotificationCreate(NotificationBase):
     recipient_id: str = Field(..., description="ID of the recipient (user or group)")
     recipient_type: str = Field(..., description="Type of recipient ('user' or 'group')")
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class NotificationUpdate(PydanticBaseModel):
     status: Optional[NotificationStatus] = Field(None, description="Status of the notification")
     read_at: Optional[datetime] = Field(None, description="Time when the notification was read")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationResponse(NotificationBase):
@@ -119,10 +125,11 @@ class NotificationResponse(NotificationBase):
     delivered_at: Optional[datetime] = None
     read_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationBulkCreate(NotificationBase):
     recipient_ids: List[str] = Field(..., description="List of recipient IDs")
     recipient_type: str = Field(..., description="Type of recipients ('user' or 'group')")
+
+    model_config = ConfigDict(from_attributes=True)

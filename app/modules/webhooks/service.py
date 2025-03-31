@@ -24,6 +24,7 @@ from app.modules.webhooks.models import (
     WebhookStatus,
     WebhookSubscription,
     WebhookSubscriptionCreate,
+    WebhookSubscriptionResponse,
 )
 from app.utils.common import json_serializer
 
@@ -84,7 +85,8 @@ class WebhooksService:
         if not db_endpoint:
             return None
 
-        update_data = endpoint_update.dict(exclude_unset=True)
+        # Use model_dump for Pydantic V2
+        update_data = endpoint_update.model_dump(exclude_unset=True)
 
         # Convert Pydantic HttpUrl to string if present
         if "url" in update_data and update_data["url"]:
@@ -232,7 +234,7 @@ class WebhooksService:
         db: Session,
         endpoint_id: Optional[int] = None,
         event_type: Optional[WebhookEventType] = None,
-    ) -> List[WebhookSubscription]:
+    ) -> List[WebhookSubscriptionResponse]:
         """
         Get webhook subscriptions with optional filtering.
 
@@ -242,7 +244,7 @@ class WebhooksService:
             event_type: Optional event type filter
 
         Returns:
-            List of webhook subscriptions
+            List of webhook subscription Pydantic models
         """
         query = db.query(WebhookSubscription)
 
@@ -252,7 +254,12 @@ class WebhooksService:
         if event_type:
             query = query.filter(WebhookSubscription.event_type == event_type.value)
 
-        return query.all()
+        db_subscriptions = query.all()
+
+        # Explicitly convert SQLAlchemy models to Pydantic models
+        response_subscriptions = [WebhookSubscriptionResponse.model_validate(sub) for sub in db_subscriptions]
+
+        return response_subscriptions
 
     @staticmethod
     async def get_endpoints_for_event(db: Session, event_type: WebhookEventType) -> List[Dict[str, Any]]:
@@ -502,24 +509,30 @@ class WebhooksService:
         return delivery_ids
 
     @staticmethod
-    async def retry_failed_deliveries(db: Session) -> int:
+    async def retry_failed_deliveries(db: Session, test_mode: bool = False) -> int:
         """
         Retry failed webhook deliveries.
 
         Args:
             db: Database session
+            test_mode: If True, directly await deliveries instead of creating background tasks (for testing)
 
         Returns:
             Number of deliveries queued for retry
         """
         # Get failed deliveries that are due for retry
         now = datetime.utcnow()
-        failed_deliveries = (
+
+        # Debug: Log the query parameters
+        if test_mode:
+            logger.info(f"Retrying failed deliveries at {now}")
+
+        query = (
             db.query(WebhookDelivery)
             .join(WebhookEndpoint, WebhookDelivery.endpoint_id == WebhookEndpoint.id)
             .filter(
                 and_(
-                    WebhookDelivery.success is False,
+                    WebhookDelivery.success is False,  # Revert back to 'is False'
                     WebhookDelivery.attempt_count < WebhookEndpoint.retry_count,
                     or_(
                         WebhookDelivery.next_retry_at.is_(None),
@@ -528,8 +541,17 @@ class WebhooksService:
                     WebhookEndpoint.status == WebhookStatus.ACTIVE.value,
                 )
             )
-            .all()
         )
+
+        # Debug: Log the query SQL in test mode
+        if test_mode:
+            logger.info(f"Retry query SQL: {query}")
+
+        failed_deliveries = query.all()
+
+        # Debug: Log the number of deliveries found
+        if test_mode:
+            logger.info(f"Found {len(failed_deliveries)} failed deliveries to retry")
 
         retry_count = 0
         for delivery in failed_deliveries:
@@ -547,9 +569,9 @@ class WebhooksService:
             delivery.next_retry_at = next_retry
             db.commit()
 
-            # Schedule retry in background
-            asyncio.create_task(
-                WebhooksService._deliver_webhook(
+            # In test mode, directly await the delivery instead of creating a background task
+            if test_mode:
+                await WebhooksService._deliver_webhook(
                     db,
                     endpoint.id,
                     delivery.event_type,
@@ -560,7 +582,21 @@ class WebhooksService:
                     endpoint.timeout_seconds,
                     delivery.id,
                 )
-            )
+            else:
+                # Schedule retry in background
+                asyncio.create_task(
+                    WebhooksService._deliver_webhook(
+                        db,
+                        endpoint.id,
+                        delivery.event_type,
+                        delivery.payload,
+                        endpoint.url,
+                        endpoint.headers,
+                        endpoint.secret,
+                        endpoint.timeout_seconds,
+                        delivery.id,
+                    )
+                )
 
             retry_count += 1
 

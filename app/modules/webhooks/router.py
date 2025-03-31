@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.modules.webhooks.models import (
     WebhookDeliveryResponse,
     WebhookEndpointCreate,
+    WebhookEndpointListResponse,
     WebhookEndpointResponse,
     WebhookEndpointUpdate,
     WebhookEventType,
@@ -39,7 +40,7 @@ async def create_webhook_endpoint(endpoint: WebhookEndpointCreate, db: Session =
     return await WebhooksService.create_endpoint(db, endpoint, created_by)
 
 
-@router.get("/endpoints", response_model=List[WebhookEndpointResponse])
+@router.get("/endpoints", response_model=List[WebhookEndpointListResponse])
 async def get_webhook_endpoints(
     status: Optional[WebhookStatus] = None,
     skip: int = Query(0, ge=0),
@@ -172,7 +173,7 @@ async def get_webhook_delivery(delivery_id: int, db: Session = Depends(get_db)):
     return delivery
 
 
-@router.post("/trigger/{event_type}")
+@router.post("/trigger/{event_type}", status_code=http_status.HTTP_202_ACCEPTED)
 async def trigger_webhook(
     event_type: WebhookEventType,
     payload: dict,
