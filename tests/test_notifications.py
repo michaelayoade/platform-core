@@ -4,7 +4,12 @@ Tests for the notifications module.
 
 from datetime import datetime, timedelta
 
-from app.modules.notifications.models import Notification, NotificationPriority, NotificationStatus, NotificationType
+from app.modules.notifications.models import (
+    Notification,
+    NotificationPriority,
+    NotificationStatus,
+    NotificationType,
+)
 
 
 def test_create_notification(client, db_session):
