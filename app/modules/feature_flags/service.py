@@ -25,9 +25,7 @@ class FeatureFlagsService:
     # --- Flag CRUD Operations ---
 
     @staticmethod
-    def create_feature_flag(
-        db: Session, redis_client: redis.Redis, flag_in: FeatureFlagCreate
-    ) -> FeatureFlag:
+    def create_feature_flag(db: Session, redis_client: redis.Redis, flag_in: FeatureFlagCreate) -> FeatureFlag:
         """Creates a new feature flag."""
         existing = db.query(FeatureFlag).filter(FeatureFlag.key == flag_in.key).first()
         if existing:
@@ -49,9 +47,7 @@ class FeatureFlagsService:
         return db.query(FeatureFlag).filter(FeatureFlag.key == flag_key).first()
 
     @staticmethod
-    def get_feature_flags(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> List[FeatureFlag]:
+    def get_feature_flags(db: Session, skip: int = 0, limit: int = 100) -> List[FeatureFlag]:
         """Retrieves a list of feature flags."""
         return db.query(FeatureFlag).offset(skip).limit(limit).all()
 
@@ -82,9 +78,7 @@ class FeatureFlagsService:
         return db_flag
 
     @staticmethod
-    def delete_feature_flag(
-        db: Session, redis_client: redis.Redis, flag_key: str
-    ) -> bool:
+    def delete_feature_flag(db: Session, redis_client: redis.Redis, flag_key: str) -> bool:
         """Deletes a feature flag."""
         db_flag = FeatureFlagsService.get_feature_flag_by_key(db, flag_key)
         if not db_flag:
@@ -101,9 +95,7 @@ class FeatureFlagsService:
     # --- Flag Evaluation Logic ---
 
     @staticmethod
-    def is_feature_enabled(
-        db: Session, redis_client: redis.Redis, flag_key: str, context: Dict[str, Any]
-    ) -> bool:
+    def is_feature_enabled(db: Session, redis_client: redis.Redis, flag_key: str, context: Dict[str, Any]) -> bool:
         """Checks if a feature flag is enabled for the given context."""
         # 1. Check Cache
         cached_flag = FeatureFlagsService._get_flag_from_cache(redis_client, flag_key)
@@ -136,9 +128,7 @@ class FeatureFlagsService:
         return is_enabled
 
     @staticmethod
-    def _evaluate_rules(
-        globally_enabled: bool, rules: Optional[Dict[str, Any]], context: Dict[str, Any]
-    ) -> bool:
+    def _evaluate_rules(globally_enabled: bool, rules: Optional[Dict[str, Any]], context: Dict[str, Any]) -> bool:
         """Evaluates targeting rules against the provided context."""
         if not globally_enabled:
             return False  # If globally disabled, rules don't matter
@@ -181,9 +171,7 @@ class FeatureFlagsService:
     # --- Cache Management ---
 
     @staticmethod
-    def _get_flag_from_cache(
-        redis_client: redis.Redis, flag_key: str
-    ) -> Optional[Dict]:
+    def _get_flag_from_cache(redis_client: redis.Redis, flag_key: str) -> Optional[Dict]:
         """Retrieves flag data from Redis cache."""
         cache_key = FeatureFlagsService._get_cache_key(flag_key)
         try:
@@ -209,9 +197,7 @@ class FeatureFlagsService:
                 "rules": flag.rules,
                 "updated_at": flag.updated_at.isoformat() if flag.updated_at else None,
             }
-            redis_client.set(
-                cache_key, json.dumps(flag_data), ex=FEATURE_FLAG_CACHE_TTL
-            )
+            redis_client.set(cache_key, json.dumps(flag_data), ex=FEATURE_FLAG_CACHE_TTL)
             logger.debug(f"Cached feature flag '{flag.key}'")
         except redis.RedisError as e:
             logger.error(f"Redis error setting cache for '{flag.key}': {e}")

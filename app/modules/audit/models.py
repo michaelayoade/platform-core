@@ -28,12 +28,8 @@ class AuditLog(BaseModel):
     action: Mapped[str] = mapped_column(String(50), index=True)
     old_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     new_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    event_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSON, nullable=True
-    )
-    ip_address: Mapped[Optional[str]] = mapped_column(
-        String(45), nullable=True
-    )  # IPv6 can be up to 45 chars
+    event_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)  # IPv6 can be up to 45 chars
 
 
 # Pydantic models for API
@@ -58,14 +54,10 @@ class AuditLogCreate(PydanticBaseModel):
         max_length=255,
         description="Identifier of the specific resource being acted upon",
     )
-    action: str = Field(
-        ..., max_length=50, description="Action performed (e.g., 'create', 'update')"
-    )
+    action: str = Field(..., max_length=50, description="Action performed (e.g., 'create', 'update')")
     old_value: Optional[str] = None
     new_value: Optional[str] = None
-    event_metadata: Optional[Dict[str, Any]] = Field(
-        None, description="Additional contextual information as JSON"
-    )
+    event_metadata: Optional[Dict[str, Any]] = Field(None, description="Additional contextual information as JSON")
     ip_address: Optional[str] = None
 
 

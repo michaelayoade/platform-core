@@ -30,9 +30,7 @@ router = APIRouter()
     response_model=WebhookEndpointResponse,
     status_code=http_status.HTTP_201_CREATED,
 )
-async def create_webhook_endpoint(
-    endpoint: WebhookEndpointCreate, db: Session = Depends(get_db)
-):
+async def create_webhook_endpoint(endpoint: WebhookEndpointCreate, db: Session = Depends(get_db)):
     """
     Create a new webhook endpoint.
     """
@@ -74,9 +72,7 @@ async def update_webhook_endpoint(
     """
     Update a webhook endpoint.
     """
-    updated_endpoint = await WebhooksService.update_endpoint(
-        db, endpoint_id, endpoint_update
-    )
+    updated_endpoint = await WebhooksService.update_endpoint(db, endpoint_id, endpoint_update)
     if not updated_endpoint:
         raise HTTPException(status_code=404, detail="Webhook endpoint not found")
     return updated_endpoint
@@ -106,9 +102,7 @@ async def create_webhook_subscription(
     """
     Create a new webhook subscription for an endpoint.
     """
-    created_subscription = await WebhooksService.create_subscription(
-        db, endpoint_id, subscription
-    )
+    created_subscription = await WebhooksService.create_subscription(db, endpoint_id, subscription)
     if not created_subscription:
         raise HTTPException(status_code=404, detail="Webhook endpoint not found")
     return created_subscription
@@ -130,12 +124,8 @@ async def get_webhook_subscriptions(endpoint_id: int, db: Session = Depends(get_
     return await WebhooksService.get_subscriptions(db, endpoint_id)
 
 
-@router.delete(
-    "/subscriptions/{subscription_id}", status_code=http_status.HTTP_204_NO_CONTENT
-)
-async def delete_webhook_subscription(
-    subscription_id: int, db: Session = Depends(get_db)
-):
+@router.delete("/subscriptions/{subscription_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+async def delete_webhook_subscription(subscription_id: int, db: Session = Depends(get_db)):
     """
     Delete a webhook subscription.
     """
@@ -146,15 +136,11 @@ async def delete_webhook_subscription(
 
 
 @router.post("/endpoints/{endpoint_id}/test", response_model=WebhookDeliveryResponse)
-async def test_webhook_endpoint(
-    endpoint_id: int, test_request: WebhookTestRequest, db: Session = Depends(get_db)
-):
+async def test_webhook_endpoint(endpoint_id: int, test_request: WebhookTestRequest, db: Session = Depends(get_db)):
     """
     Test a webhook endpoint with a sample payload.
     """
-    delivery = await WebhooksService.test_webhook(
-        db, endpoint_id, test_request.event_type, test_request.payload
-    )
+    delivery = await WebhooksService.test_webhook(db, endpoint_id, test_request.event_type, test_request.payload)
     if not delivery:
         raise HTTPException(status_code=404, detail="Webhook endpoint not found")
     return delivery
@@ -172,9 +158,7 @@ async def get_webhook_deliveries(
     """
     Get webhook deliveries with optional filtering.
     """
-    return await WebhooksService.get_deliveries(
-        db, endpoint_id, event_type, success, skip, limit
-    )
+    return await WebhooksService.get_deliveries(db, endpoint_id, event_type, success, skip, limit)
 
 
 @router.get("/deliveries/{delivery_id}", response_model=WebhookDeliveryResponse)
@@ -198,9 +182,7 @@ async def trigger_webhook(
     """
     Trigger webhooks for an event.
     """
-    delivery_ids = await WebhooksService.trigger_webhook(
-        db, background_tasks, event_type, payload
-    )
+    delivery_ids = await WebhooksService.trigger_webhook(db, background_tasks, event_type, payload)
     return {
         "event_type": event_type,
         "delivery_count": len(delivery_ids),

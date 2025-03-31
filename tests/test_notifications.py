@@ -35,9 +35,7 @@ def test_create_notification(client, db_session):
     assert data["status"] == "PENDING"
 
     # Check database
-    db_notification = (
-        db_session.query(Notification).filter(Notification.id == data["id"]).first()
-    )
+    db_notification = db_session.query(Notification).filter(Notification.id == data["id"]).first()
     assert db_notification is not None
     assert db_notification.title == notification_data["title"]
 
@@ -93,11 +91,7 @@ def test_mark_as_read(client, db_session):
     assert data["read_at"] is not None
 
     # Check database
-    db_notification = (
-        db_session.query(Notification)
-        .filter(Notification.id == notification.id)
-        .first()
-    )
+    db_notification = db_session.query(Notification).filter(Notification.id == notification.id).first()
     assert db_notification.status == NotificationStatus.READ.value
     assert db_notification.read_at is not None
 

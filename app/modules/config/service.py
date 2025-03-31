@@ -45,9 +45,7 @@ class ConfigService:
             )
 
     @staticmethod
-    async def get_scopes(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> List[ConfigScope]:
+    async def get_scopes(db: Session, skip: int = 0, limit: int = 100) -> List[ConfigScope]:
         """
         Get all configuration scopes.
         """
@@ -131,18 +129,10 @@ class ConfigService:
                 detail=f"Scope '{scope_name}' not found",
             )
 
-        return (
-            db.query(ConfigItem)
-            .filter(ConfigItem.scope_id == scope.id)
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
+        return db.query(ConfigItem).filter(ConfigItem.scope_id == scope.id).offset(skip).limit(limit).all()
 
     @staticmethod
-    async def get_config_item(
-        db: Session, redis_client: Redis, scope_name: str, key: str
-    ) -> Optional[ConfigItem]:
+    async def get_config_item(db: Session, redis_client: Redis, scope_name: str, key: str) -> Optional[ConfigItem]:
         """
         Get a configuration item by scope and key.
         """
@@ -153,22 +143,14 @@ class ConfigService:
                 detail=f"Scope '{scope_name}' not found",
             )
 
-        return (
-            db.query(ConfigItem)
-            .filter(ConfigItem.scope_id == scope.id, ConfigItem.key == key)
-            .first()
-        )
+        return db.query(ConfigItem).filter(ConfigItem.scope_id == scope.id, ConfigItem.key == key).first()
 
     @staticmethod
-    async def get_config_item_value(
-        db: Session, redis_client: Redis, scope_name: str, key: str
-    ) -> Any:
+    async def get_config_item_value(db: Session, redis_client: Redis, scope_name: str, key: str) -> Any:
         """
         Get a configuration item value by scope and key.
         """
-        config_item = await ConfigService.get_config_item(
-            db, redis_client, scope_name, key
-        )
+        config_item = await ConfigService.get_config_item(db, redis_client, scope_name, key)
         if not config_item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -178,9 +160,7 @@ class ConfigService:
         return config_item.value
 
     @staticmethod
-    async def update_config_item(
-        db: Session, item_id: int, item_update: ConfigItemUpdate, actor_id: str
-    ) -> ConfigItem:
+    async def update_config_item(db: Session, item_id: int, item_update: ConfigItemUpdate, actor_id: str) -> ConfigItem:
         """
         Update a configuration item.
         """
@@ -217,9 +197,7 @@ class ConfigService:
         return db_config
 
     @staticmethod
-    async def delete_config_item(
-        db: Session, item_id: int, actor_id: str
-    ) -> Optional[ConfigItem]:
+    async def delete_config_item(db: Session, item_id: int, actor_id: str) -> Optional[ConfigItem]:
         """
         Delete a configuration item.
         """
@@ -237,9 +215,7 @@ class ConfigService:
         return db_config
 
     @staticmethod
-    async def get_config_history(
-        db: Session, item_id: int, skip: int = 0, limit: int = 100
-    ) -> List[ConfigHistory]:
+    async def get_config_history(db: Session, item_id: int, skip: int = 0, limit: int = 100) -> List[ConfigHistory]:
         """
         Get history for a configuration item.
         """
@@ -261,36 +237,28 @@ class ConfigService:
         )
 
     @staticmethod
-    async def get_config_scope_by_name(
-        db: Session, scope_name: str
-    ) -> Optional[ConfigScope]:
+    async def get_config_scope_by_name(db: Session, scope_name: str) -> Optional[ConfigScope]:
         """
         Get a configuration scope by name.
         """
         return db.query(ConfigScope).filter(ConfigScope.name == scope_name).first()
 
     @staticmethod
-    async def get_config_scope_by_id(
-        db: Session, scope_id: int
-    ) -> Optional[ConfigScope]:
+    async def get_config_scope_by_id(db: Session, scope_id: int) -> Optional[ConfigScope]:
         """
         Get a configuration scope by ID.
         """
         return db.query(ConfigScope).filter(ConfigScope.id == scope_id).first()
 
     @staticmethod
-    async def get_all_config_scopes(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> List[ConfigScope]:
+    async def get_all_config_scopes(db: Session, skip: int = 0, limit: int = 100) -> List[ConfigScope]:
         """
         Get all configuration scopes.
         """
         return db.query(ConfigScope).offset(skip).limit(limit).all()
 
     @staticmethod
-    async def create_config_scope(
-        db: Session, scope: ConfigScopeCreate, actor_id: str
-    ) -> ConfigScope:
+    async def create_config_scope(db: Session, scope: ConfigScopeCreate, actor_id: str) -> ConfigScope:
         """
         Create a new configuration scope.
         """
@@ -333,9 +301,7 @@ class ConfigService:
         return db_scope
 
     @staticmethod
-    async def delete_config_scope(
-        db: Session, scope_id: int, actor_id: str
-    ) -> Optional[ConfigScope]:
+    async def delete_config_scope(db: Session, scope_id: int, actor_id: str) -> Optional[ConfigScope]:
         """
         Delete a configuration scope.
         """
@@ -353,9 +319,7 @@ class ConfigService:
         return db_scope
 
     @classmethod
-    async def cache_config(
-        cls, redis: Redis, scope_name: str, key: str, value: str
-    ) -> bool:
+    async def cache_config(cls, redis: Redis, scope_name: str, key: str, value: str) -> bool:
         """
         Cache a configuration item in Redis.
         """
@@ -363,9 +327,7 @@ class ConfigService:
         return redis.set(redis_key, value)
 
     @classmethod
-    async def get_cached_config(
-        cls, redis: Redis, scope_name: str, key: str
-    ) -> Optional[str]:
+    async def get_cached_config(cls, redis: Redis, scope_name: str, key: str) -> Optional[str]:
         """
         Get a cached configuration item from Redis.
         """
@@ -373,9 +335,7 @@ class ConfigService:
         return redis.get(redis_key)
 
     @classmethod
-    async def invalidate_config_cache(
-        cls, redis: Redis, scope_name: str, key: str
-    ) -> bool:
+    async def invalidate_config_cache(cls, redis: Redis, scope_name: str, key: str) -> bool:
         """
         Invalidate a cached configuration item.
         """
@@ -394,9 +354,7 @@ class ConfigService:
         return redis.delete(*keys)
 
     @classmethod
-    async def publish_config_update(
-        cls, redis: Redis, scope_name: str, key: str
-    ) -> int:
+    async def publish_config_update(cls, redis: Redis, scope_name: str, key: str) -> int:
         """
         Publish a configuration update event.
         """

@@ -46,9 +46,7 @@ class LoggingService:
         return db_log_entry
 
     @staticmethod
-    async def get_log_entries(
-        db: Session, query_params: LogQueryParams
-    ) -> List[LogEntry]:
+    async def get_log_entries(db: Session, query_params: LogQueryParams) -> List[LogEntry]:
         """
         Get log entries based on query parameters.
 
@@ -165,9 +163,7 @@ class LoggingService:
 
         # Apply time range filters if provided
         if start_time and end_time:
-            query = query.filter(
-                and_(LogEntry.timestamp >= start_time, LogEntry.timestamp <= end_time)
-            )
+            query = query.filter(and_(LogEntry.timestamp >= start_time, LogEntry.timestamp <= end_time))
         elif start_time:
             query = query.filter(LogEntry.timestamp >= start_time)
         elif end_time:

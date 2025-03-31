@@ -6,11 +6,16 @@ import enum
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Column, DateTime, Index, Integer, String, Text
-from sqlalchemy.sql import func
+# Alias Pydantic BaseModel
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import Field
+from sqlalchemy import JSON, DateTime, Index, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base_model import Base
+# Remove incorrect Base import
+# from app.db.base_model import Base
+# Import correct BaseModel
+from app.db.base_model import BaseModel
 
 
 class NotificationType(str, enum.Enum):
@@ -47,136 +52,77 @@ class NotificationStatus(str, enum.Enum):
     FAILED = "failed"
 
 
-class Notification(Base):
+class Notification(BaseModel):
     """
     Model for storing notifications.
+    Inherits id, created_at, updated_at from BaseModel (implicitly).
     """
 
     __tablename__ = "notifications"
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), nullable=False)
-    message = Column(Text, nullable=False)
-    notification_type = Column(
-        String(20), nullable=False, default=NotificationType.INFO.value
+    # id, created_at, updated_at are inherited from BaseModel
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    notification_type: Mapped[str] = mapped_column(String(20), nullable=False, default=NotificationType.INFO.value)
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default=NotificationPriority.MEDIUM.value)
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=NotificationStatus.PENDING.value,
+        index=True,  # Added index here
     )
-    priority = Column(
-        String(20), nullable=False, default=NotificationPriority.MEDIUM.value
-    )
-    status = Column(
-        String(20), nullable=False, default=NotificationStatus.PENDING.value
-    )
-    recipient_id = Column(
-        String(100), nullable=False, index=True
-    )  # User ID or group ID
-    recipient_type = Column(String(20), nullable=False)  # "user" or "group"
-    sender_id = Column(String(100), nullable=True)  # User ID or system ID
-    created_at = Column(DateTime, default=func.now(), index=True)
-    delivered_at = Column(DateTime, nullable=True)
-    read_at = Column(DateTime, nullable=True)
-    expires_at = Column(DateTime, nullable=True)  # Optional expiration time
-    data = Column(JSON, nullable=True)  # Additional data for the notification
-    action_url = Column(String(500), nullable=True)  # Optional URL for action button
+    recipient_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    recipient_type: Mapped[str] = mapped_column(String(20), nullable=False)  # "user" or "group"
+    sender_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    action_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Create indexes for common query patterns
     __table_args__ = (
         Index("idx_notifications_recipient_status", recipient_id, status),
-        Index("idx_notifications_created_at", created_at),
+        # Index("idx_notifications_created_at", created_at), # created_at is already indexed via BaseModel
     )
 
 
-# Pydantic models for API
-class NotificationCreate(BaseModel):
-    """
-    Schema for creating a new notification.
-    """
-
+# Pydantic models for API - Use aliased PydanticBaseModel
+class NotificationBase(PydanticBaseModel):
     title: str = Field(..., description="Notification title")
     message: str = Field(..., description="Notification message")
-    notification_type: NotificationType = Field(
-        NotificationType.INFO, description="Type of notification"
-    )
-    priority: NotificationPriority = Field(
-        NotificationPriority.MEDIUM, description="Priority of notification"
-    )
-    recipient_id: str = Field(..., description="ID of the recipient (user or group)")
-    recipient_type: str = Field(
-        ..., description="Type of recipient ('user' or 'group')"
-    )
-    sender_id: Optional[str] = Field(
-        None, description="ID of the sender (user or system)"
-    )
+    notification_type: NotificationType = Field(NotificationType.INFO, description="Type of notification")
+    priority: NotificationPriority = Field(NotificationPriority.MEDIUM, description="Priority of notification")
+    sender_id: Optional[str] = Field(None, description="ID of the sender (user or system)")
     expires_at: Optional[datetime] = Field(None, description="Optional expiration time")
-    data: Optional[Dict[str, Any]] = Field(
-        None, description="Additional data for the notification"
-    )
-    action_url: Optional[str] = Field(
-        None, description="Optional URL for action button"
-    )
+    data: Optional[Dict[str, Any]] = Field(None, description="Additional data for the notification")
+    action_url: Optional[str] = Field(None, description="Optional URL for action button")
 
 
-class NotificationUpdate(BaseModel):
-    """
-    Schema for updating a notification.
-    """
-
-    status: Optional[NotificationStatus] = Field(
-        None, description="Status of the notification"
-    )
-    read_at: Optional[datetime] = Field(
-        None, description="Time when the notification was read"
-    )
+class NotificationCreate(NotificationBase):
+    recipient_id: str = Field(..., description="ID of the recipient (user or group)")
+    recipient_type: str = Field(..., description="Type of recipient ('user' or 'group')")
 
 
-class NotificationResponse(BaseModel):
-    """
-    Schema for notification response.
-    """
+class NotificationUpdate(PydanticBaseModel):
+    status: Optional[NotificationStatus] = Field(None, description="Status of the notification")
+    read_at: Optional[datetime] = Field(None, description="Time when the notification was read")
 
+
+class NotificationResponse(NotificationBase):
     id: int
-    title: str
-    message: str
-    notification_type: str
-    priority: str
     status: str
     recipient_id: str
     recipient_type: str
-    sender_id: Optional[str] = None
     created_at: datetime
     delivered_at: Optional[datetime] = None
     read_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
-    data: Optional[Dict[str, Any]] = None
-    action_url: Optional[str] = None
 
     class Config:
         orm_mode = True
 
 
-class NotificationBulkCreate(BaseModel):
-    """
-    Schema for creating multiple notifications at once.
-    """
-
-    title: str = Field(..., description="Notification title")
-    message: str = Field(..., description="Notification message")
-    notification_type: NotificationType = Field(
-        NotificationType.INFO, description="Type of notification"
-    )
-    priority: NotificationPriority = Field(
-        NotificationPriority.MEDIUM, description="Priority of notification"
-    )
+class NotificationBulkCreate(NotificationBase):
     recipient_ids: List[str] = Field(..., description="List of recipient IDs")
-    recipient_type: str = Field(
-        ..., description="Type of recipients ('user' or 'group')"
-    )
-    sender_id: Optional[str] = Field(
-        None, description="ID of the sender (user or system)"
-    )
-    expires_at: Optional[datetime] = Field(None, description="Optional expiration time")
-    data: Optional[Dict[str, Any]] = Field(
-        None, description="Additional data for the notification"
-    )
-    action_url: Optional[str] = Field(
-        None, description="Optional URL for action button"
-    )
+    recipient_type: str = Field(..., description="Type of recipients ('user' or 'group')")

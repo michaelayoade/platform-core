@@ -26,9 +26,7 @@ router = APIRouter()
     response_model=ConfigScopeResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_scope(
-    scope: ConfigScopeCreate, db: Session = Depends(get_db)
-) -> ConfigScopeResponse:
+async def create_scope(scope: ConfigScopeCreate, db: Session = Depends(get_db)) -> ConfigScopeResponse:
     """
     Create a new configuration scope.
     """
@@ -36,9 +34,7 @@ async def create_scope(
 
 
 @router.get("/scopes", response_model=List[ConfigScopeResponse])
-async def get_scopes(
-    skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
-) -> List[ConfigScopeResponse]:
+async def get_scopes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> List[ConfigScopeResponse]:
     """
     Get all configuration scopes.
     """
@@ -46,9 +42,7 @@ async def get_scopes(
 
 
 @router.get("/scopes/{scope_name}", response_model=ConfigScopeResponse)
-async def get_scope(
-    scope_name: str, db: Session = Depends(get_db)
-) -> ConfigScopeResponse:
+async def get_scope(scope_name: str, db: Session = Depends(get_db)) -> ConfigScopeResponse:
     """
     Get a configuration scope by name.
     """
@@ -81,9 +75,7 @@ async def create_config_item(
     # For now, we'll use the client IP as a placeholder
     user_id = get_client_ip(request)
 
-    config_item = await ConfigService.create_config_item(
-        db, scope_name, config, user_id
-    )
+    config_item = await ConfigService.create_config_item(db, scope_name, config, user_id)
 
     # Cache the config item
     await ConfigService.cache_config(redis, scope_name, config.key, config.value)
@@ -163,9 +155,7 @@ async def update_config_item(
     # For now, we'll use the client IP as a placeholder
     user_id = get_client_ip(request)
 
-    config_item = await ConfigService.update_config_item(
-        db, scope_name, key, config, user_id
-    )
+    config_item = await ConfigService.update_config_item(db, scope_name, key, config, user_id)
 
     # Update cache
     await ConfigService.cache_config(redis, scope_name, key, config_item.value)

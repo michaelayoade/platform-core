@@ -34,8 +34,7 @@ def init_db() -> None:
             db.close()
     except Exception as e:
         logger.error(
-            f"Error initializing database: {e}. "
-            "If your models have changed, you might need to run migrations."
+            f"Error initializing database: {e}. " "If your models have changed, you might need to run migrations."
         )
         raise
 

@@ -47,17 +47,11 @@ class LogEntryCreate(BaseModel):
     level: str = Field(..., description="Log level (INFO, WARNING, ERROR, DEBUG, etc.)")
     service: str = Field(..., description="Service or component name")
     message: str = Field(..., description="Log message")
-    context: Optional[Dict[str, Any]] = Field(
-        None, description="Additional context data"
-    )
-    trace_id: Optional[str] = Field(
-        None, description="Trace ID for distributed tracing"
-    )
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
+    trace_id: Optional[str] = Field(None, description="Trace ID for distributed tracing")
     span_id: Optional[str] = Field(None, description="Span ID for distributed tracing")
     user_id: Optional[str] = Field(None, description="User ID if applicable")
-    ip_address: Optional[str] = Field(
-        None, description="Client IP address if applicable"
-    )
+    ip_address: Optional[str] = Field(None, description="Client IP address if applicable")
 
 
 class LogEntryResponse(BaseModel):

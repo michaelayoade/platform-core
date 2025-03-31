@@ -18,9 +18,7 @@ class ConfigScope(BaseModel):
     __tablename__ = "configscope"
 
     # Use mapped_column for explicit column definitions
-    name: Mapped[str] = mapped_column(
-        String(100), unique=True, index=True, nullable=False
-    )
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationship - Mapped[List[...]] is standard for one-to-many
@@ -40,9 +38,7 @@ class ConfigItem(BaseModel):
     value: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    is_secret: Mapped[bool] = mapped_column(
-        Integer, default=0, nullable=False
-    )  # 0=false, 1=true
+    is_secret: Mapped[bool] = mapped_column(Integer, default=0, nullable=False)  # 0=false, 1=true
 
     # Foreign keys - use Mapped[int] for the type, keep ForeignKey in mapped_column
     scope_id: Mapped[int] = mapped_column(ForeignKey("configscope.id"), nullable=False)
@@ -72,9 +68,7 @@ class ConfigHistory(BaseModel):
     config_id: Mapped[int] = mapped_column(ForeignKey("configitem.id"), nullable=False)
 
     # Relationship
-    config_item: Mapped["ConfigItem"] = relationship(
-        "ConfigItem", back_populates="history"
-    )
+    config_item: Mapped["ConfigItem"] = relationship("ConfigItem", back_populates="history")
 
 
 # Pydantic models for API

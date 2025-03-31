@@ -32,9 +32,7 @@ async def get_log_entries(
     end_time: Optional[str] = Query(None, description="End time (ISO format)"),
     trace_id: Optional[str] = Query(None, description="Filter by trace ID"),
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
-    limit: int = Query(
-        100, ge=1, le=1000, description="Maximum number of logs to return"
-    ),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of logs to return"),
     offset: int = Query(0, ge=0, description="Number of logs to skip"),
     db: Session = Depends(get_db),
 ):
@@ -79,9 +77,7 @@ async def export_logs_to_json(
     end_time: Optional[str] = Query(None, description="End time (ISO format)"),
     trace_id: Optional[str] = Query(None, description="Filter by trace ID"),
     user_id: Optional[str] = Query(None, description="Filter by user ID"),
-    limit: int = Query(
-        1000, ge=1, le=10000, description="Maximum number of logs to export"
-    ),
+    limit: int = Query(1000, ge=1, le=10000, description="Maximum number of logs to export"),
     offset: int = Query(0, ge=0, description="Number of logs to skip"),
     db: Session = Depends(get_db),
 ):
@@ -127,6 +123,4 @@ async def get_log_statistics(
     parsed_start_time = parse_datetime(start_time) if start_time else None
     parsed_end_time = parse_datetime(end_time) if end_time else None
 
-    return await LoggingService.get_log_statistics(
-        db, parsed_start_time, parsed_end_time
-    )
+    return await LoggingService.get_log_statistics(db, parsed_start_time, parsed_end_time)

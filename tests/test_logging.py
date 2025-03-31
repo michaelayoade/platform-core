@@ -139,9 +139,7 @@ def test_export_logs(client, db_session):
     # Check response
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
-    assert response.headers["Content-Disposition"].startswith(
-        "attachment; filename=logs_"
-    )
+    assert response.headers["Content-Disposition"].startswith("attachment; filename=logs_")
 
     # Parse JSON response
     logs = json.loads(response.content)

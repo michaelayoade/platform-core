@@ -39,13 +39,9 @@ class HealthService:
             with engine.connect() as conn:
                 conn.execute(sa.text("SELECT 1"))
 
-            return ComponentStatus(
-                name="database", status=ServiceStatus.OK, details={"type": "postgresql"}
-            )
+            return ComponentStatus(name="database", status=ServiceStatus.OK, details={"type": "postgresql"})
         except Exception as e:
-            return ComponentStatus(
-                name="database", status=ServiceStatus.ERROR, error=str(e)
-            )
+            return ComponentStatus(name="database", status=ServiceStatus.ERROR, error=str(e))
 
     @staticmethod
     async def check_redis(redis_client: Redis) -> ComponentStatus:
@@ -56,18 +52,12 @@ class HealthService:
             # Execute a simple PING command
             redis_client.ping()
 
-            return ComponentStatus(
-                name="redis", status=ServiceStatus.OK, details={"type": "redis"}
-            )
+            return ComponentStatus(name="redis", status=ServiceStatus.OK, details={"type": "redis"})
         except Exception as e:
-            return ComponentStatus(
-                name="redis", status=ServiceStatus.ERROR, error=str(e)
-            )
+            return ComponentStatus(name="redis", status=ServiceStatus.ERROR, error=str(e))
 
     @classmethod
-    async def check_all_components(
-        cls, engine, redis_client: Redis
-    ) -> List[ComponentStatus]:
+    async def check_all_components(cls, engine, redis_client: Redis) -> List[ComponentStatus]:
         """
         Check all components.
         """

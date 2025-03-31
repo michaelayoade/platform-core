@@ -129,28 +129,20 @@ async def read_root():
 # Include routers
 app.include_router(health_router, prefix="/health", tags=["Health"])
 
-app.include_router(
-    audit_router, prefix=f"{settings.API_V1_STR}/audit", tags=["Audit Logs"]
-)
-app.include_router(
-    config_router, prefix=f"{settings.API_V1_STR}/config", tags=["Configuration"]
-)
+app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/audit", tags=["Audit Logs"])
+app.include_router(config_router, prefix=f"{settings.API_V1_STR}/config", tags=["Configuration"])
 app.include_router(
     feature_flags_router,
     prefix=f"{settings.API_V1_STR}/feature-flags",
     tags=["Feature Flags"],
 )
-app.include_router(
-    logging_router, prefix=f"{settings.API_V1_STR}/logs", tags=["Logging"]
-)
+app.include_router(logging_router, prefix=f"{settings.API_V1_STR}/logs", tags=["Logging"])
 app.include_router(
     notifications_router,
     prefix=f"{settings.API_V1_STR}/notifications",
     tags=["Notifications"],
 )
-app.include_router(
-    webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["Webhooks"]
-)
+app.include_router(webhooks_router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["Webhooks"])
 
 
 @app.on_event("startup")

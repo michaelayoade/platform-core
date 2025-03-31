@@ -67,9 +67,7 @@ async def prune_old_logs(days: int = 30):
         # Create query params with the cutoff date
         from app.modules.logging.models import LogQueryParams
 
-        query_params = LogQueryParams(
-            end_time=cutoff_date, limit=10000  # Set a high limit to delete in batches
-        )
+        query_params = LogQueryParams(end_time=cutoff_date, limit=10000)  # Set a high limit to delete in batches
 
         # Get old logs
         old_logs = await LoggingService.get_log_entries(db, query_params)

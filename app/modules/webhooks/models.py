@@ -4,13 +4,14 @@ Models for the webhooks module.
 
 import enum
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, HttpUrl
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.sql import func
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import Field, HttpUrl
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base_model import Base
+from app.db.base_model import BaseModel
 
 
 class WebhookEventType(str, enum.Enum):
@@ -38,186 +39,150 @@ class WebhookStatus(str, enum.Enum):
     FAILED = "failed"  # Too many failures
 
 
-class WebhookEndpoint(Base):
+class WebhookEndpoint(BaseModel):
     """
     Model for storing webhook endpoints.
+    Inherits id, created_at, updated_at from BaseModel (implicitly).
     """
 
     __tablename__ = "webhook_endpoints"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    url = Column(String(500), nullable=False)
-    description = Column(Text, nullable=True)
-    secret = Column(String(100), nullable=True)  # For HMAC signature verification
-    status = Column(String(20), default=WebhookStatus.ACTIVE.value)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    created_by = Column(String(100), nullable=True)
-    headers = Column(JSON, nullable=True)  # Custom headers to include in requests
-    retry_count = Column(Integer, default=3)  # Number of retries for failed webhooks
-    timeout_seconds = Column(Integer, default=5)  # Timeout for webhook requests
+    # id, created_at, updated_at are inherited from BaseModel
+
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)  # Use String, HttpUrl validation is Pydantic
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    secret: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # For HMAC signature verification
+    status: Mapped[str] = mapped_column(String(20), default=WebhookStatus.ACTIVE.value)
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    headers: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)  # Custom headers
+    retry_count: Mapped[int] = mapped_column(Integer, default=3)  # Number of retries
+    timeout_seconds: Mapped[int] = mapped_column(Integer, default=5)  # Timeout
+
+    # Relationships (example, adjust if needed)
+    subscriptions: Mapped[List["WebhookSubscription"]] = relationship(back_populates="endpoint")
+    deliveries: Mapped[List["WebhookDelivery"]] = relationship(back_populates="endpoint")
 
     # Create indexes for common query patterns
     __table_args__ = (Index("idx_webhook_endpoints_status", status),)
 
 
-class WebhookSubscription(Base):
+class WebhookSubscription(BaseModel):
     """
     Model for storing webhook subscriptions to event types.
+    Inherits id, created_at, updated_at from BaseModel (implicitly).
     """
 
     __tablename__ = "webhook_subscriptions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    endpoint_id = Column(
+    # id, created_at, updated_at are inherited from BaseModel
+
+    endpoint_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("webhook_endpoints.id", ondelete="CASCADE"), nullable=False
     )
-    event_type = Column(String(50), nullable=False)
-    filter_conditions = Column(
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    filter_conditions: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSON, nullable=True
     )  # Optional conditions for triggering
-    created_at = Column(DateTime, default=func.now())
+
+    # Relationship
+    endpoint: Mapped["WebhookEndpoint"] = relationship(back_populates="subscriptions")
 
     # Create indexes for common query patterns
-    __table_args__ = (
-        Index("idx_webhook_subscriptions_endpoint_event", endpoint_id, event_type),
-    )
+    __table_args__ = (Index("idx_webhook_subscriptions_endpoint_event", endpoint_id, event_type),)
 
 
-class WebhookDelivery(Base):
+class WebhookDelivery(BaseModel):
     """
     Model for storing webhook delivery attempts.
+    Inherits id, created_at, updated_at from BaseModel (implicitly).
     """
 
     __tablename__ = "webhook_deliveries"
 
-    id = Column(Integer, primary_key=True, index=True)
-    endpoint_id = Column(
+    # id, created_at, updated_at are inherited from BaseModel
+
+    endpoint_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("webhook_endpoints.id", ondelete="CASCADE"), nullable=False
     )
-    event_type = Column(String(50), nullable=False)
-    payload = Column(JSON, nullable=False)
-    request_headers = Column(JSON, nullable=True)
-    response_status = Column(Integer, nullable=True)
-    response_body = Column(Text, nullable=True)
-    success = Column(Boolean, default=False)
-    attempt_count = Column(Integer, default=1)
-    created_at = Column(DateTime, default=func.now())
-    completed_at = Column(DateTime, nullable=True)
-    next_retry_at = Column(DateTime, nullable=True)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    payload: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+    request_headers: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    response_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    response_body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    success: Mapped[bool] = mapped_column(Boolean, default=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=1)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_retry_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
+    # Relationship
+    endpoint: Mapped["WebhookEndpoint"] = relationship(back_populates="deliveries")
 
     # Create indexes for common query patterns
     __table_args__ = (
         Index("idx_webhook_deliveries_success", success),
-        Index("idx_webhook_deliveries_next_retry", next_retry_at),
+        # Index on next_retry_at already added via mapped_column
     )
 
 
-# Pydantic models for API
-class WebhookEndpointCreate(BaseModel):
-    """
-    Schema for creating a new webhook endpoint.
-    """
+# Pydantic models for API - Use aliased PydanticBaseModel
 
+
+class WebhookEndpointBase(PydanticBaseModel):
     name: str = Field(..., description="Name of the webhook endpoint")
     url: HttpUrl = Field(..., description="URL of the webhook endpoint")
-    description: Optional[str] = Field(
-        None, description="Description of the webhook endpoint"
-    )
-    secret: Optional[str] = Field(
-        None, description="Secret for HMAC signature verification"
-    )
-    headers: Optional[Dict[str, str]] = Field(
-        None, description="Custom headers to include in requests"
-    )
-    retry_count: Optional[int] = Field(
-        3, description="Number of retries for failed webhooks"
-    )
-    timeout_seconds: Optional[int] = Field(
-        5, description="Timeout for webhook requests in seconds"
-    )
+    description: Optional[str] = Field(None, description="Description of the webhook endpoint")
+    secret: Optional[str] = Field(None, description="Secret for HMAC signature verification")
+    headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to include in requests")
+    retry_count: Optional[int] = Field(3, ge=0, le=10, description="Number of retries (0-10)")
+    timeout_seconds: Optional[int] = Field(5, ge=1, le=30, description="Timeout in seconds (1-30)")
 
 
-class WebhookEndpointUpdate(BaseModel):
-    """
-    Schema for updating a webhook endpoint.
-    """
+class WebhookEndpointCreate(WebhookEndpointBase):
+    pass
 
+
+class WebhookEndpointUpdate(PydanticBaseModel):
     name: Optional[str] = Field(None, description="Name of the webhook endpoint")
     url: Optional[HttpUrl] = Field(None, description="URL of the webhook endpoint")
-    description: Optional[str] = Field(
-        None, description="Description of the webhook endpoint"
-    )
-    secret: Optional[str] = Field(
-        None, description="Secret for HMAC signature verification"
-    )
-    status: Optional[WebhookStatus] = Field(
-        None, description="Status of the webhook endpoint"
-    )
-    headers: Optional[Dict[str, str]] = Field(
-        None, description="Custom headers to include in requests"
-    )
-    retry_count: Optional[int] = Field(
-        None, description="Number of retries for failed webhooks"
-    )
-    timeout_seconds: Optional[int] = Field(
-        None, description="Timeout for webhook requests in seconds"
-    )
+    description: Optional[str] = Field(None, description="Description of the webhook endpoint")
+    secret: Optional[str] = Field(None, description="Secret for HMAC signature verification")
+    status: Optional[WebhookStatus] = Field(None, description="Status of the webhook endpoint")
+    headers: Optional[Dict[str, str]] = Field(None, description="Custom headers to include in requests")
+    retry_count: Optional[int] = Field(None, ge=0, le=10, description="Number of retries (0-10)")
+    timeout_seconds: Optional[int] = Field(None, ge=1, le=30, description="Timeout in seconds (1-30)")
 
 
-class WebhookSubscriptionCreate(BaseModel):
-    """
-    Schema for creating a new webhook subscription.
-    """
-
+class WebhookSubscriptionBase(PydanticBaseModel):
     event_type: WebhookEventType = Field(..., description="Event type to subscribe to")
-    filter_conditions: Optional[Dict[str, Any]] = Field(
-        None, description="Optional conditions for triggering"
-    )
+    filter_conditions: Optional[Dict[str, Any]] = Field(None, description="Optional conditions for triggering")
 
 
-class WebhookEndpointResponse(BaseModel):
-    """
-    Schema for webhook endpoint response.
-    """
+class WebhookSubscriptionCreate(WebhookSubscriptionBase):
+    pass
 
+
+class WebhookEndpointResponse(WebhookEndpointBase):
     id: int
-    name: str
-    url: str
-    description: Optional[str] = None
     status: str
     created_at: datetime
     updated_at: datetime
     created_by: Optional[str] = None
-    headers: Optional[Dict[str, str]] = None
-    retry_count: int
-    timeout_seconds: int
 
     class Config:
         orm_mode = True
 
 
-class WebhookSubscriptionResponse(BaseModel):
-    """
-    Schema for webhook subscription response.
-    """
-
+class WebhookSubscriptionResponse(WebhookSubscriptionBase):
     id: int
     endpoint_id: int
-    event_type: str
-    filter_conditions: Optional[Dict[str, Any]] = None
     created_at: datetime
 
     class Config:
         orm_mode = True
 
 
-class WebhookDeliveryResponse(BaseModel):
-    """
-    Schema for webhook delivery response.
-    """
-
+class WebhookDeliveryResponse(PydanticBaseModel):
     id: int
     endpoint_id: int
     event_type: str
@@ -233,10 +198,6 @@ class WebhookDeliveryResponse(BaseModel):
         orm_mode = True
 
 
-class WebhookTestRequest(BaseModel):
-    """
-    Schema for testing a webhook endpoint.
-    """
-
+class WebhookTestRequest(PydanticBaseModel):
     event_type: WebhookEventType = Field(..., description="Event type to test")
-    payload: Dict[str, Any] = Field(..., description="Test payload to send")
+    payload: Dict[str, Any] = Field(..., description="Test payload data")

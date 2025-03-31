@@ -35,9 +35,7 @@ async def create_feature_flag(
 ) -> FeatureFlagResponse:
     """Create a new feature flag definition."""
     try:
-        flag = FeatureFlagsService.create_feature_flag(
-            db, redis_client, flag_in=flag_in
-        )
+        flag = FeatureFlagsService.create_feature_flag(db, redis_client, flag_in=flag_in)
     except ValueError as e:
         logger.warning(f"Failed to create feature flag '{flag_in.key}': {e}")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -76,9 +74,7 @@ async def get_feature_flag(
     flag = FeatureFlagsService.get_feature_flag_by_key(db, flag_key)
     if not flag:
         logger.warning(f"Feature flag with key '{flag_key}' not found.")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
     return flag
 
 
@@ -96,14 +92,10 @@ async def update_feature_flag(
     redis_client: redis.Redis = Depends(get_redis_client),
 ) -> FeatureFlagResponse:
     """Update an existing feature flag's properties."""
-    flag = FeatureFlagsService.update_feature_flag(
-        db, redis_client, flag_key=flag_key, flag_update=flag_in
-    )
+    flag = FeatureFlagsService.update_feature_flag(db, redis_client, flag_key=flag_key, flag_update=flag_in)
     if not flag:
         logger.warning(f"Feature flag with key '{flag_key}' not found for update.")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
     return flag
 
 
@@ -120,14 +112,10 @@ async def delete_feature_flag(
     redis_client: redis.Redis = Depends(get_redis_client),
 ) -> None:
     """Delete a feature flag and its segments."""
-    deleted = FeatureFlagsService.delete_feature_flag(
-        db, redis_client, flag_key=flag_key
-    )
+    deleted = FeatureFlagsService.delete_feature_flag(db, redis_client, flag_key=flag_key)
     if not deleted:
         logger.warning(f"Feature flag with key '{flag_key}' not found for deletion.")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
     return None  # Return 204 No Content
 
 
@@ -152,18 +140,14 @@ async def evaluate_feature_flag(
     context = {k: v for k, v in context.items() if v is not None}
 
     try:
-        is_enabled = FeatureFlagsService.is_feature_enabled(
-            db, redis_client, flag_key=flag_key, context=context
-        )
+        is_enabled = FeatureFlagsService.is_feature_enabled(db, redis_client, flag_key=flag_key, context=context)
     except ValueError as e:
         logger.warning(f"Could not evaluate feature flag '{flag_key}': {e}")
         # Return default state (usually False) or raise specific error?
         # For now, assume flag doesn't exist or error means disabled.
         # Consider raising 404 if flag not found is the specific error.
         if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
         # For other errors (e.g., Redis down), a 500 might be appropriate
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

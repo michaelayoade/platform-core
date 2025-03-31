@@ -80,9 +80,7 @@ class WebhooksService:
         Returns:
             Updated webhook endpoint if found, None otherwise
         """
-        db_endpoint = (
-            db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
-        )
+        db_endpoint = db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
         if not db_endpoint:
             return None
 
@@ -111,9 +109,7 @@ class WebhooksService:
         Returns:
             True if deleted, False if not found
         """
-        db_endpoint = (
-            db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
-        )
+        db_endpoint = db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
         if not db_endpoint:
             return False
 
@@ -133,9 +129,7 @@ class WebhooksService:
         Returns:
             Webhook endpoint if found, None otherwise
         """
-        return (
-            db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
-        )
+        return db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
 
     @staticmethod
     async def get_endpoints(
@@ -161,12 +155,7 @@ class WebhooksService:
         if status:
             query = query.filter(WebhookEndpoint.status == status.value)
 
-        return (
-            query.order_by(WebhookEndpoint.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
+        return query.order_by(WebhookEndpoint.created_at.desc()).offset(skip).limit(limit).all()
 
     @staticmethod
     async def create_subscription(
@@ -230,11 +219,7 @@ class WebhooksService:
         Returns:
             True if deleted, False if not found
         """
-        db_subscription = (
-            db.query(WebhookSubscription)
-            .filter(WebhookSubscription.id == subscription_id)
-            .first()
-        )
+        db_subscription = db.query(WebhookSubscription).filter(WebhookSubscription.id == subscription_id).first()
         if not db_subscription:
             return False
 
@@ -270,9 +255,7 @@ class WebhooksService:
         return query.all()
 
     @staticmethod
-    async def get_endpoints_for_event(
-        db: Session, event_type: WebhookEventType
-    ) -> List[Dict[str, Any]]:
+    async def get_endpoints_for_event(db: Session, event_type: WebhookEventType) -> List[Dict[str, Any]]:
         """
         Get all active webhook endpoints subscribed to a specific event type.
 
@@ -341,9 +324,7 @@ class WebhooksService:
         payload_str = json.dumps(payload, default=json_serializer)
 
         # Generate HMAC signature
-        signature = hmac.new(
-            secret.encode(), payload_str.encode(), hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(secret.encode(), payload_str.encode(), hashlib.sha256).hexdigest()
 
         return signature
 
@@ -378,25 +359,17 @@ class WebhooksService:
         """
         # Get or create delivery record
         if delivery_id:
-            db_delivery = (
-                db.query(WebhookDelivery)
-                .filter(WebhookDelivery.id == delivery_id)
-                .first()
-            )
+            db_delivery = db.query(WebhookDelivery).filter(WebhookDelivery.id == delivery_id).first()
             if db_delivery:
                 db_delivery.attempt_count += 1
                 db_delivery.next_retry_at = None
             else:
                 # Create new delivery record if ID not found
-                db_delivery = WebhookDelivery(
-                    endpoint_id=endpoint_id, event_type=event_type, payload=payload
-                )
+                db_delivery = WebhookDelivery(endpoint_id=endpoint_id, event_type=event_type, payload=payload)
                 db.add(db_delivery)
         else:
             # Create new delivery record
-            db_delivery = WebhookDelivery(
-                endpoint_id=endpoint_id, event_type=event_type, payload=payload
-            )
+            db_delivery = WebhookDelivery(endpoint_id=endpoint_id, event_type=event_type, payload=payload)
             db.add(db_delivery)
 
         db.commit()
@@ -457,9 +430,7 @@ class WebhooksService:
             db_delivery.response_body = str(e)
             db_delivery.success = False
             db_delivery.completed_at = datetime.utcnow()
-            logger.error(
-                f"Webhook delivery error: ID={db_delivery.id}, Event={event_type}, Error={str(e)}"
-            )
+            logger.error(f"Webhook delivery error: ID={db_delivery.id}, Event={event_type}, Error={str(e)}")
 
         # Update delivery record
         db.commit()
@@ -507,9 +478,7 @@ class WebhooksService:
                     continue
 
             # Create delivery record
-            db_delivery = WebhookDelivery(
-                endpoint_id=endpoint["id"], event_type=event_type.value, payload=payload
-            )
+            db_delivery = WebhookDelivery(endpoint_id=endpoint["id"], event_type=event_type.value, payload=payload)
             db.add(db_delivery)
             db.commit()
             db.refresh(db_delivery)
@@ -565,18 +534,12 @@ class WebhooksService:
         retry_count = 0
         for delivery in failed_deliveries:
             # Get endpoint details
-            endpoint = (
-                db.query(WebhookEndpoint)
-                .filter(WebhookEndpoint.id == delivery.endpoint_id)
-                .first()
-            )
+            endpoint = db.query(WebhookEndpoint).filter(WebhookEndpoint.id == delivery.endpoint_id).first()
             if not endpoint:
                 continue
 
             # Calculate next retry time with exponential backoff
-            backoff_factor = min(
-                delivery.attempt_count, 5
-            )  # Cap at 5 to avoid excessive delays
+            backoff_factor = min(delivery.attempt_count, 5)  # Cap at 5 to avoid excessive delays
             retry_delay = 60 * (2**backoff_factor)  # Exponential backoff in seconds
             next_retry = now + timedelta(seconds=retry_delay)
 
@@ -656,9 +619,7 @@ class WebhooksService:
         Returns:
             Webhook delivery if found, None otherwise
         """
-        return (
-            db.query(WebhookDelivery).filter(WebhookDelivery.id == delivery_id).first()
-        )
+        return db.query(WebhookDelivery).filter(WebhookDelivery.id == delivery_id).first()
 
     @staticmethod
     async def get_deliveries(
@@ -694,9 +655,4 @@ class WebhooksService:
         if success is not None:
             query = query.filter(WebhookDelivery.success == success)
 
-        return (
-            query.order_by(desc(WebhookDelivery.created_at))
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
+        return query.order_by(desc(WebhookDelivery.created_at)).offset(skip).limit(limit).all()

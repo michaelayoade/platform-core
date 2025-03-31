@@ -33,11 +33,7 @@ def test_create_endpoint(client, db_session):
     assert "secret" not in data  # Secret should not be returned
 
     # Check database
-    db_endpoint = (
-        db_session.query(WebhookEndpoint)
-        .filter(WebhookEndpoint.id == data["id"])
-        .first()
-    )
+    db_endpoint = db_session.query(WebhookEndpoint).filter(WebhookEndpoint.id == data["id"]).first()
     assert db_endpoint is not None
     assert db_endpoint.url == endpoint_data["url"]
     assert db_endpoint.secret == endpoint_data["secret"]  # Secret should be stored
@@ -96,11 +92,7 @@ def test_create_subscription(client, db_session):
     assert data["description"] == subscription_data["description"]
 
     # Check database
-    db_subscription = (
-        db_session.query(WebhookSubscription)
-        .filter(WebhookSubscription.id == data["id"])
-        .first()
-    )
+    db_subscription = db_session.query(WebhookSubscription).filter(WebhookSubscription.id == data["id"]).first()
     assert db_subscription is not None
     assert db_subscription.endpoint_id == subscription_data["endpoint_id"]
     assert db_subscription.event_types == subscription_data["event_types"]
@@ -199,9 +191,7 @@ def test_trigger_webhook(mock_post, client, db_session):
 
     # Verify signature
     signature = headers["X-Webhook-Signature"]
-    expected_signature = hmac.new(
-        endpoint.secret.encode(), kwargs["content"], hashlib.sha256
-    ).hexdigest()
+    expected_signature = hmac.new(endpoint.secret.encode(), kwargs["content"], hashlib.sha256).hexdigest()
     assert signature == expected_signature
 
     # Check database

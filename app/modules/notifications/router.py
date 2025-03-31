@@ -34,9 +34,7 @@ async def create_notification(
     """
     Create a new notification and publish it for real-time delivery.
     """
-    return await NotificationsService.create_and_publish_notification(
-        db, redis_client, notification, background_tasks
-    )
+    return await NotificationsService.create_and_publish_notification(db, redis_client, notification, background_tasks)
 
 
 @router.post("/bulk", response_model=List[NotificationResponse], status_code=201)
@@ -58,17 +56,11 @@ async def create_bulk_notifications(
 async def get_notifications(
     recipient_id: Optional[str] = Query(None, description="Filter by recipient ID"),
     status: Optional[NotificationStatus] = Query(None, description="Filter by status"),
-    notification_type: Optional[NotificationType] = Query(
-        None, description="Filter by notification type"
-    ),
-    priority: Optional[NotificationPriority] = Query(
-        None, description="Filter by priority"
-    ),
+    notification_type: Optional[NotificationType] = Query(None, description="Filter by notification type"),
+    priority: Optional[NotificationPriority] = Query(None, description="Filter by priority"),
     include_expired: bool = Query(False, description="Include expired notifications"),
     skip: int = Query(0, ge=0, description="Number of notifications to skip"),
-    limit: int = Query(
-        100, ge=1, le=100, description="Maximum number of notifications to return"
-    ),
+    limit: int = Query(100, ge=1, le=100, description="Maximum number of notifications to return"),
     db: Session = Depends(get_db),
 ):
     """
@@ -110,15 +102,11 @@ async def get_notification(notification_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{notification_id}", response_model=NotificationResponse)
-async def update_notification(
-    notification_id: int, update_data: NotificationUpdate, db: Session = Depends(get_db)
-):
+async def update_notification(notification_id: int, update_data: NotificationUpdate, db: Session = Depends(get_db)):
     """
     Update a notification.
     """
-    updated_notification = await NotificationsService.update_notification(
-        db, notification_id, update_data
-    )
+    updated_notification = await NotificationsService.update_notification(db, notification_id, update_data)
     if not updated_notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return updated_notification

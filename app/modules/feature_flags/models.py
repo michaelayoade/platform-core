@@ -1,62 +1,70 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Boolean, Column, String, Text
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import Field
+from sqlalchemy import JSON, Boolean, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base_model import BaseModel as DBBaseModel
-from app.db.session import Base
+from app.db.base_model import BaseModel
 
 
-class FeatureFlag(Base, DBBaseModel):
+class FeatureFlag(BaseModel):
     """
-    Feature flag model.
+    Model for feature flags.
+    Inherits id, created_at, updated_at from BaseModel.
     """
 
-    key = Column(String(255), unique=True, index=True, nullable=False)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    enabled = Column(Boolean, default=False, nullable=False)
-    rules = Column(JSON, nullable=True)  # For user/group targeting
+    __tablename__ = "featureflag"
+
+    key: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    rules: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
 
 
 # Pydantic models for API
-class FeatureFlagCreate(BaseModel):
+class FeatureFlagBase(PydanticBaseModel):
+    """
+    Schema for feature flag base.
+    """
+
+    key: str = Field(..., max_length=100, description="Unique key for the feature flag")
+    name: str = Field(..., description="Name of the feature flag")
+    description: Optional[str] = Field(None, description="Description of the feature flag")
+
+
+class FeatureFlagCreate(FeatureFlagBase):
     """
     Schema for creating a feature flag.
     """
 
-    key: str
-    name: str
-    description: Optional[str] = None
     enabled: bool = False
     rules: Optional[List[Dict[str, Any]]] = Field(
         None, description="JSON array of rules for targeting (e.g., user IDs, groups)"
     )
 
 
-class FeatureFlagUpdate(BaseModel):
+class FeatureFlagUpdate(PydanticBaseModel):
     """
     Schema for updating a feature flag.
     """
 
-    name: Optional[str] = None
-    description: Optional[str] = None
-    enabled: Optional[bool] = None
+    name: Optional[str] = Field(None, description="Name of the feature flag")
+    description: Optional[str] = Field(None, description="Description of the feature flag")
+    enabled: Optional[bool] = Field(None, description="Whether the feature flag is enabled")
     rules: Optional[List[Dict[str, Any]]] = Field(
         None, description="JSON array of rules for targeting (e.g., user IDs, groups)"
     )
 
 
-class FeatureFlagResponse(BaseModel):
+class FeatureFlagResponse(FeatureFlagBase):
     """
     Schema for feature flag response.
     """
 
     id: int
-    key: str
-    name: str
-    description: Optional[str] = None
     enabled: bool
     rules: Optional[List[Dict[str, Any]]] = Field(
         None, description="JSON array of rules for targeting (e.g., user IDs, groups)"
@@ -68,17 +76,17 @@ class FeatureFlagResponse(BaseModel):
         orm_mode = True
 
 
-class FeatureFlagCheck(BaseModel):
+class FeatureFlagCheck(PydanticBaseModel):
     """
     Schema for checking if a feature flag is enabled for a user.
     """
 
-    user_id: Optional[str] = None
-    groups: Optional[List[str]] = None
-    attributes: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = Field(None, description="User ID")
+    groups: Optional[List[str]] = Field(None, description="List of groups")
+    attributes: Optional[Dict[str, Any]] = Field(None, description="User attributes")
 
 
-class FeatureFlagCheckResponse(BaseModel):
+class FeatureFlagCheckResponse(PydanticBaseModel):
     """
     Schema for feature flag check response.
     """
