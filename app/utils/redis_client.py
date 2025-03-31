@@ -57,12 +57,11 @@ class RedisClient:
         """Close the Redis client and connection pool gracefully."""
         if cls._redis_client:
             try:
-                await cls._redis_client.close()  # Close the client instance first
-                logger.info("Redis client connection closed.")
-            except RedisError as e:
-                logger.error(f"Error closing Redis client: {e}", exc_info=True)
-            finally:
+                await cls._redis_client.aclose()  # Use aclose() for async client
+                logger.info("Redis connection pool closed.")
                 cls._redis_client = None
+            except Exception as e:
+                logger.error(f"Error closing Redis connection pool: {e}")
         else:
             logger.warning("Attempted to close Redis client, but it was not initialized.")
 

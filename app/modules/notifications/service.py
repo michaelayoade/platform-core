@@ -343,10 +343,10 @@ class NotificationsService:
             notification_json = json.dumps(notification_dict, default=json_serializer)
 
             # Publish to Redis
-            redis_client.publish(channel, notification_json)
+            await redis_client.publish(channel, notification_json)
 
             # Also publish to a global channel for system-wide listeners
-            redis_client.publish("notifications:all", notification_json)
+            await redis_client.publish("notifications:all", notification_json)
 
             logger.info(f"Published notification {notification.id} to channel {channel}")
             return True

@@ -532,7 +532,7 @@ class WebhooksService:
             .join(WebhookEndpoint, WebhookDelivery.endpoint_id == WebhookEndpoint.id)
             .filter(
                 and_(
-                    WebhookDelivery.success is False,  # Revert back to 'is False'
+                    WebhookDelivery.success == False,  # noqa: E712 - Use == for SQLAlchemy boolean comparison
                     WebhookDelivery.attempt_count < WebhookEndpoint.retry_count,
                     or_(
                         WebhookDelivery.next_retry_at.is_(None),

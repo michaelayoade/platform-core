@@ -50,7 +50,7 @@ class HealthService:
         """
         try:
             # Execute a simple PING command
-            redis_client.ping()
+            await redis_client.ping()
 
             return ComponentStatus(name="redis", status=ServiceStatus.OK, details={"type": "redis"})
         except Exception as e:
