@@ -1,15 +1,16 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+# Alias Pydantic BaseModel
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import Field
 from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base  # Base declarative_base()
-from app.db.base_model import BaseModel as DBBaseModel
+from app.db.base_model import BaseModel
 
 
-class ConfigScope(Base, DBBaseModel):
+class ConfigScope(BaseModel):
     """
     Configuration scope model (e.g., 'auth', 'billing').
     """
@@ -26,7 +27,7 @@ class ConfigScope(Base, DBBaseModel):
     )
 
 
-class ConfigItem(Base, DBBaseModel):
+class ConfigItem(BaseModel):
     """
     Configuration item model.
     """
@@ -52,7 +53,7 @@ class ConfigItem(Base, DBBaseModel):
     __table_args__ = (UniqueConstraint("scope_id", "key", name="uix_config_scope_key"),)
 
 
-class ConfigHistory(Base, DBBaseModel):
+class ConfigHistory(BaseModel):
     """
     Configuration history model for tracking changes.
     """
@@ -71,23 +72,27 @@ class ConfigHistory(Base, DBBaseModel):
 
 
 # Pydantic models for API
-class ConfigScopeCreate(BaseModel):
-    """
-    Schema for creating a config scope.
-    """
 
-    name: str
+
+# Use aliased PydanticBaseModel
+class ConfigScopeBase(PydanticBaseModel):
+    name: str = Field(..., max_length=100, description="Scope name (e.g., 'auth')")
     description: Optional[str] = None
 
 
-class ConfigScopeResponse(BaseModel):
-    """
-    Schema for config scope response.
-    """
+# Use aliased PydanticBaseModel
+class ConfigScopeCreate(ConfigScopeBase):
+    pass
 
+
+# Use aliased PydanticBaseModel
+class ConfigScopeUpdate(ConfigScopeBase):
+    name: Optional[str] = None  # Allow partial updates
+
+
+# Use aliased PydanticBaseModel
+class ConfigScopeResponse(ConfigScopeBase):
     id: int
-    name: str
-    description: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -95,39 +100,31 @@ class ConfigScopeResponse(BaseModel):
         orm_mode = True
 
 
-class ConfigItemCreate(BaseModel):
-    """
-    Schema for creating a config item.
-    """
-
-    key: str = Field(..., max_length=255, description="Name/key of the config item")
-    value: str
+# Use aliased PydanticBaseModel
+class ConfigItemBase(PydanticBaseModel):
+    key: str = Field(..., max_length=255, description="Configuration key")
+    value: str = Field(..., description="Configuration value")
     description: Optional[str] = None
     is_secret: bool = False
 
 
-class ConfigItemUpdate(BaseModel):
-    """
-    Schema for updating a config item.
-    """
+# Use aliased PydanticBaseModel
+class ConfigItemCreate(ConfigItemBase):
+    scope_id: int
 
-    value: str
+
+# Use aliased PydanticBaseModel
+class ConfigItemUpdate(PydanticBaseModel):  # Separate base for update flexibility
+    value: Optional[str] = None
     description: Optional[str] = None
     is_secret: Optional[bool] = None
 
 
-class ConfigItemResponse(BaseModel):
-    """
-    Schema for config item response.
-    """
-
+# Use aliased PydanticBaseModel
+class ConfigItemResponse(ConfigItemBase):
     id: int
-    key: str
-    value: str
-    description: Optional[str] = None
-    version: int
-    is_secret: bool
     scope_id: int
+    version: int
     created_at: datetime
     updated_at: datetime
 
@@ -135,15 +132,15 @@ class ConfigItemResponse(BaseModel):
         orm_mode = True
 
 
-class ConfigHistoryResponse(BaseModel):
-    """
-    Schema for config history response.
-    """
-
+# Use aliased PydanticBaseModel
+class ConfigHistoryResponse(PydanticBaseModel):
     id: int
-    value: str
+    config_id: int
     version: int
-    changed_by: Optional[str] = None
+    key: str
+    value: str
+    description: Optional[str]
+    is_secret: bool
     created_at: datetime
 
     class Config:
