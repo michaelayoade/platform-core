@@ -7,10 +7,10 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
-from sqlalchemy import JSON, DateTime, Index, String, Text, func
+from shared_core.base.base_model import BaseModel
+from sqlalchemy import DateTime, Index, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.db.base_model import BaseModel
 
 
 class LogEntry(BaseModel):
@@ -25,7 +25,7 @@ class LogEntry(BaseModel):
     level: Mapped[str] = mapped_column(String(10), index=True)  # INFO, WARNING, ERROR, DEBUG, etc.
     service: Mapped[str] = mapped_column(String(100), index=True)  # Service or component name
     message: Mapped[str] = mapped_column(Text)
-    context: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)  # Additional context data
+    context: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)  # Additional context data
     trace_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)  # For distributed tracing
     span_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # For distributed tracing
     user_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)  # User ID if applicable
@@ -86,3 +86,33 @@ class LogQueryParams(PydanticBaseModel):
     user_id: Optional[str] = None
     limit: int = 100
     offset: int = 0
+
+
+class ExportRequest(PydanticBaseModel):
+    """
+    Schema for export request.
+    """
+
+    level: Optional[str] = None
+    service_name: Optional[str] = Field(None, alias="service")
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+
+
+class ExportResponse(PydanticBaseModel):
+    """
+    Schema for export response.
+    """
+
+    message: str
+    export_id: str  # Could be a task ID for background processing
+
+
+class LogStatsSummary(PydanticBaseModel):
+    """
+    Schema for log stats summary.
+    """
+
+    total_logs: int
+    levels_count: Dict[str, int]
+    services_count: Dict[str, int]

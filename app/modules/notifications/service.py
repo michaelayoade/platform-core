@@ -9,8 +9,8 @@ from typing import List, Optional
 
 import redis
 from fastapi import BackgroundTasks
-from sqlalchemy import and_, desc, or_
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, desc, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.notifications.models import (
     Notification,
@@ -30,7 +30,7 @@ class NotificationsService:
     """
 
     @staticmethod
-    async def create_notification(db: Session, notification: NotificationCreate) -> Notification:
+    async def create_notification(db: AsyncSession, notification: NotificationCreate) -> Notification:
         """
         Create a new notification.
 
@@ -54,12 +54,12 @@ class NotificationsService:
             action_url=notification.action_url,
         )
         db.add(db_notification)
-        db.commit()
-        db.refresh(db_notification)
+        await db.commit()
+        await db.refresh(db_notification)
         return db_notification
 
     @staticmethod
-    async def create_bulk_notifications(db: Session, notification: NotificationBulkCreate) -> List[Notification]:
+    async def create_bulk_notifications(db: AsyncSession, notification: NotificationBulkCreate) -> List[Notification]:
         """
         Create multiple notifications at once.
 
@@ -88,17 +88,17 @@ class NotificationsService:
             db.add(db_notification)
             created_notifications.append(db_notification)
 
-        db.commit()
+        await db.commit()
 
         # Refresh all notifications
         for notification in created_notifications:
-            db.refresh(notification)
+            await db.refresh(notification)
 
         return created_notifications
 
     @staticmethod
     async def update_notification(
-        db: Session, notification_id: int, update_data: NotificationUpdate
+        db: AsyncSession, notification_id: int, update_data: NotificationUpdate
     ) -> Optional[Notification]:
         """
         Update a notification.
@@ -111,7 +111,9 @@ class NotificationsService:
         Returns:
             Updated notification if found, None otherwise
         """
-        db_notification = db.query(Notification).filter(Notification.id == notification_id).first()
+        db_notification = (
+            await db.execute(select(Notification).filter(Notification.id == notification_id))
+        ).scalar_one_or_none()
         if not db_notification:
             return None
 
@@ -128,12 +130,12 @@ class NotificationsService:
         if update_dict.get("status") == NotificationStatus.READ.value and not db_notification.read_at:
             db_notification.read_at = datetime.utcnow()
 
-        db.commit()
-        db.refresh(db_notification)
+        await db.commit()
+        await db.refresh(db_notification)
         return db_notification
 
     @staticmethod
-    async def mark_as_read(db: Session, notification_id: int) -> Optional[Notification]:
+    async def mark_as_read(db: AsyncSession, notification_id: int) -> Optional[Notification]:
         """
         Mark a notification as read.
 
@@ -148,7 +150,7 @@ class NotificationsService:
         return await NotificationsService.update_notification(db, notification_id, update_data)
 
     @staticmethod
-    async def mark_all_as_read(db: Session, recipient_id: str) -> int:
+    async def mark_all_as_read(db: AsyncSession, recipient_id: str) -> int:
         """
         Mark all notifications for a recipient as read.
 
@@ -163,18 +165,22 @@ class NotificationsService:
 
         # Get all unread notifications for the recipient
         unread_notifications = (
-            db.query(Notification)
-            .filter(
-                and_(
-                    Notification.recipient_id == recipient_id,
-                    Notification.status.in_(
-                        [
-                            NotificationStatus.PENDING.value,
-                            NotificationStatus.DELIVERED.value,
-                        ]
-                    ),
+            (
+                await db.execute(
+                    select(Notification).filter(
+                        and_(
+                            Notification.recipient_id == recipient_id,
+                            Notification.status.in_(
+                                [
+                                    NotificationStatus.PENDING.value,
+                                    NotificationStatus.DELIVERED.value,
+                                ]
+                            ),
+                        )
+                    )
                 )
             )
+            .scalars()
             .all()
         )
 
@@ -183,11 +189,11 @@ class NotificationsService:
             notification.status = NotificationStatus.READ.value
             notification.read_at = now
 
-        db.commit()
+        await db.commit()
         return len(unread_notifications)
 
     @staticmethod
-    async def delete_notification(db: Session, notification_id: int) -> bool:
+    async def delete_notification(db: AsyncSession, notification_id: int) -> bool:
         """
         Delete a notification.
 
@@ -198,16 +204,18 @@ class NotificationsService:
         Returns:
             True if deleted, False if not found
         """
-        db_notification = db.query(Notification).filter(Notification.id == notification_id).first()
+        db_notification = (
+            await db.execute(select(Notification).filter(Notification.id == notification_id))
+        ).scalar_one_or_none()
         if not db_notification:
             return False
 
-        db.delete(db_notification)
-        db.commit()
+        await db.delete(db_notification)
+        await db.commit()
         return True
 
     @staticmethod
-    async def get_notification(db: Session, notification_id: int) -> Optional[Notification]:
+    async def get_notification(db: AsyncSession, notification_id: int) -> Optional[Notification]:
         """
         Get a notification by ID.
 
@@ -218,11 +226,11 @@ class NotificationsService:
         Returns:
             Notification if found, None otherwise
         """
-        return db.query(Notification).filter(Notification.id == notification_id).first()
+        return (await db.execute(select(Notification).filter(Notification.id == notification_id))).scalar_one_or_none()
 
     @staticmethod
     async def get_notifications(
-        db: Session,
+        db: AsyncSession,
         recipient_id: Optional[str] = None,
         status: Optional[NotificationStatus] = None,
         notification_type: Optional[str] = None,
@@ -247,7 +255,7 @@ class NotificationsService:
         Returns:
             List of notifications
         """
-        query = db.query(Notification)
+        query = select(Notification)
 
         # Apply filters
         if recipient_id:
@@ -265,7 +273,12 @@ class NotificationsService:
         # Filter out expired notifications if not included
         if not include_expired:
             now = datetime.utcnow()
-            query = query.filter(or_(Notification.expires_at.is_(None), Notification.expires_at > now))
+            query = query.filter(
+                or_(
+                    Notification.expires_at.is_(None),
+                    Notification.expires_at > now,
+                )
+            )
 
         # Order by created_at (newest first)
         query = query.order_by(desc(Notification.created_at))
@@ -273,10 +286,10 @@ class NotificationsService:
         # Apply pagination
         query = query.offset(skip).limit(limit)
 
-        return query.all()
+        return (await db.execute(query)).scalars().all()
 
     @staticmethod
-    async def get_unread_count(db: Session, recipient_id: str) -> int:
+    async def get_unread_count(db: AsyncSession, recipient_id: str) -> int:
         """
         Get the count of unread notifications for a recipient.
 
@@ -290,9 +303,8 @@ class NotificationsService:
         now = datetime.utcnow()
 
         # Count unread notifications that are not expired
-        count = (
-            db.query(Notification)
-            .filter(
+        result = await db.execute(
+            select(Notification).filter(
                 and_(
                     Notification.recipient_id == recipient_id,
                     Notification.status.in_(
@@ -301,13 +313,17 @@ class NotificationsService:
                             NotificationStatus.DELIVERED.value,
                         ]
                     ),
-                    or_(Notification.expires_at.is_(None), Notification.expires_at > now),
+                    or_(
+                        Notification.expires_at.is_(None),
+                        Notification.expires_at > now,
+                    ),
                 )
             )
-            .count()
         )
 
-        return count
+        # Convert to list and get the count
+        notifications = result.scalars().all()
+        return len(notifications)
 
     @staticmethod
     async def publish_notification(redis_client: redis.Redis, notification: Notification) -> bool:
@@ -357,10 +373,10 @@ class NotificationsService:
 
     @staticmethod
     async def create_and_publish_notification(
-        db: Session,
+        db: AsyncSession,
         redis_client: redis.Redis,
         notification: NotificationCreate,
-        background_tasks: BackgroundTasks,
+        background_tasks: Optional[BackgroundTasks] = None,
     ) -> Notification:
         """
         Create a notification and publish it to Redis for real-time delivery.
@@ -369,7 +385,7 @@ class NotificationsService:
             db: Database session
             redis_client: Redis client
             notification: Notification data
-            background_tasks: FastAPI background tasks
+            background_tasks: FastAPI background tasks (optional)
 
         Returns:
             Created notification
@@ -377,14 +393,25 @@ class NotificationsService:
         # Create notification in database
         db_notification = await NotificationsService.create_notification(db, notification)
 
-        # Publish to Redis in background
-        background_tasks.add_task(NotificationsService.publish_notification, redis_client, db_notification)
+        # Publish to Redis (either in background or directly)
+        if background_tasks:
+            background_tasks.add_task(
+                NotificationsService.publish_notification,
+                redis_client,
+                db_notification,
+            )
+        else:
+            # Publish directly if no background_tasks provided
+            await NotificationsService.publish_notification(
+                redis_client,
+                db_notification,
+            )
 
         return db_notification
 
     @staticmethod
     async def create_and_publish_bulk_notifications(
-        db: Session,
+        db: AsyncSession,
         redis_client: redis.Redis,
         notification: NotificationBulkCreate,
         background_tasks: BackgroundTasks,
@@ -406,12 +433,16 @@ class NotificationsService:
 
         # Publish to Redis in background
         for db_notification in db_notifications:
-            background_tasks.add_task(NotificationsService.publish_notification, redis_client, db_notification)
+            background_tasks.add_task(
+                NotificationsService.publish_notification,
+                redis_client,
+                db_notification,
+            )
 
         return db_notifications
 
     @staticmethod
-    async def clean_expired_notifications(db: Session) -> int:
+    async def clean_expired_notifications(db: AsyncSession) -> int:
         """
         Clean up expired notifications.
 
@@ -425,14 +456,23 @@ class NotificationsService:
 
         # Find expired notifications
         expired_notifications = (
-            db.query(Notification)
-            .filter(and_(Notification.expires_at.isnot(None), Notification.expires_at <= now))
+            (
+                await db.execute(
+                    select(Notification).filter(
+                        and_(
+                            Notification.expires_at.isnot(None),
+                            Notification.expires_at <= now,
+                        )
+                    )
+                )
+            )
+            .scalars()
             .all()
         )
 
         # Delete expired notifications
         for notification in expired_notifications:
-            db.delete(notification)
+            await db.delete(notification)
 
-        db.commit()
+        await db.commit()
         return len(expired_notifications)

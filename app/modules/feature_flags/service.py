@@ -95,7 +95,12 @@ class FeatureFlagsService:
     # --- Flag Evaluation Logic ---
 
     @staticmethod
-    def is_feature_enabled(db: Session, redis_client: redis.Redis, flag_key: str, context: Dict[str, Any]) -> bool:
+    def is_feature_enabled(
+        db: Session,
+        redis_client: redis.Redis,
+        flag_key: str,
+        context: Dict[str, Any],
+    ) -> bool:
         """Checks if a feature flag is enabled for the given context."""
         # 1. Check Cache
         cached_flag = FeatureFlagsService._get_flag_from_cache(redis_client, flag_key)
@@ -119,7 +124,9 @@ class FeatureFlagsService:
 
         # 3. Evaluate Rules
         is_enabled = FeatureFlagsService._evaluate_rules(
-            globally_enabled=db_flag.enabled, rules=db_flag.rules, context=context
+            globally_enabled=db_flag.enabled,
+            rules=db_flag.rules,
+            context=context,
         )
 
         # 4. Update Cache
@@ -128,7 +135,11 @@ class FeatureFlagsService:
         return is_enabled
 
     @staticmethod
-    def _evaluate_rules(globally_enabled: bool, rules: Optional[Dict[str, Any]], context: Dict[str, Any]) -> bool:
+    def _evaluate_rules(
+        globally_enabled: bool,
+        rules: Optional[Dict[str, Any]],
+        context: Dict[str, Any],
+    ) -> bool:
         """Evaluates targeting rules against the provided context."""
         if not globally_enabled:
             return False  # If globally disabled, rules don't matter

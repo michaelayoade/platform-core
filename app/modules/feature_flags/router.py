@@ -1,9 +1,10 @@
+import json
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.redis import get_redis_client
 from app.db.session import get_db
@@ -30,12 +31,12 @@ FEATURE_FLAG_TAG = "Feature Flags"
 )
 async def create_feature_flag(
     flag_in: FeatureFlagCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client),
 ) -> FeatureFlagResponse:
     """Create a new feature flag definition."""
     try:
-        flag = FeatureFlagsService.create_feature_flag(db, redis_client, flag_in=flag_in)
+        flag = await FeatureFlagsService.create_feature_flag(db, redis_client, flag_in=flag_in)
     except ValueError as e:
         logger.warning(f"Failed to create feature flag '{flag_in.key}': {e}")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -50,13 +51,13 @@ async def create_feature_flag(
     tags=[FEATURE_FLAG_TAG],
 )
 async def list_feature_flags(
+    is_active: Optional[bool] = Query(None),
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> List[FeatureFlagResponse]:
-    """Retrieve all feature flags with pagination."""
-    flags = FeatureFlagsService.get_feature_flags(db, skip=skip, limit=limit)
-    return flags
+    """Retrieve feature flags, optionally filtered by active status."""
+    return await FeatureFlagsService.get_feature_flags(db, is_active=is_active, skip=skip, limit=limit)
 
 
 @router.get(
@@ -68,14 +69,17 @@ async def list_feature_flags(
 )
 async def get_feature_flag(
     flag_key: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> FeatureFlagResponse:
-    """Retrieve a single feature flag definition."""
-    flag = FeatureFlagsService.get_feature_flag_by_key(db, flag_key)
-    if not flag:
+    """Retrieve a specific feature flag by key."""
+    db_flag = await FeatureFlagsService.get_feature_flag_by_key(db, flag_key)
+    if db_flag is None:
         logger.warning(f"Feature flag with key '{flag_key}' not found.")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
-    return flag
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feature flag not found",
+        )
+    return db_flag
 
 
 @router.put(
@@ -87,16 +91,21 @@ async def get_feature_flag(
 )
 async def update_feature_flag(
     flag_key: str,
-    flag_in: FeatureFlagUpdate,
-    db: Session = Depends(get_db),
+    flag_update: FeatureFlagUpdate,
+    db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client),
 ) -> FeatureFlagResponse:
-    """Update an existing feature flag's properties."""
-    flag = FeatureFlagsService.update_feature_flag(db, redis_client, flag_key=flag_key, flag_update=flag_in)
-    if not flag:
+    """Update a feature flag."""
+    db_flag = await FeatureFlagsService.update_feature_flag(
+        db, redis_client, flag_key=flag_key, flag_update=flag_update
+    )
+    if db_flag is None:
         logger.warning(f"Feature flag with key '{flag_key}' not found for update.")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
-    return flag
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feature flag not found",
+        )
+    return db_flag
 
 
 @router.delete(
@@ -107,16 +116,30 @@ async def update_feature_flag(
     tags=[FEATURE_FLAG_TAG],
 )
 async def delete_feature_flag(
-    flag_key: str,
-    db: Session = Depends(get_db),
+    key: str = Path(..., description="Unique key of the feature flag to delete"),
+    db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client),
 ) -> None:
-    """Delete a feature flag and its segments."""
-    deleted = FeatureFlagsService.delete_feature_flag(db, redis_client, flag_key=flag_key)
-    if not deleted:
-        logger.warning(f"Feature flag with key '{flag_key}' not found for deletion.")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
-    return None  # Return 204 No Content
+    """
+    Delete a feature flag by its key.
+
+    Requires `feature_flags:delete` permission.
+    """
+    success = await FeatureFlagsService.delete_feature_flag(db, key=key)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Feature flag with key '{key}' not found",
+        )
+
+    # Invalidate cache
+    await FeatureFlagsService.invalidate_cache(redis_client, key=key)
+
+    # Publish update event
+    await FeatureFlagsService.publish_update(redis_client, key=key, action="deleted")
+
+    # No content to return on success
+    return None
 
 
 @router.get(
@@ -128,29 +151,42 @@ async def delete_feature_flag(
 )
 async def evaluate_feature_flag(
     flag_key: str,
-    user_id: Optional[str] = None,
-    group_id: Optional[str] = None,
-    # Add other context attributes as needed (e.g., tenant_id, region)
-    db: Session = Depends(get_db),
+    context_str: Optional[str] = Query(None, alias="context"),
+    db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client),
 ) -> bool:
-    """Evaluate if a feature flag is enabled for the given context."""
-    context = {"user_id": user_id, "group_id": group_id}
-    # Remove None values from context
-    context = {k: v for k, v in context.items() if v is not None}
+    """
+    Evaluate a feature flag based on the provided context.
+    The context is expected as a JSON string in the query parameter 'context'.
+    Example: /evaluate/my-flag?context={\"user_id\":\"abc\",\"region\":\"eu\"}
+    """
+    context_dict: Dict[str, Any] = {}
+    if context_str:
+        try:
+            context_dict = json.loads(context_str)
+            if not isinstance(context_dict, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid context format: must be a JSON object.",
+                )
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid context format: could not parse JSON.",
+            )
 
     try:
-        is_enabled = FeatureFlagsService.is_feature_enabled(db, redis_client, flag_key=flag_key, context=context)
-    except ValueError as e:
-        logger.warning(f"Could not evaluate feature flag '{flag_key}': {e}")
-        # Return default state (usually False) or raise specific error?
-        # For now, assume flag doesn't exist or error means disabled.
-        # Consider raising 404 if flag not found is the specific error.
-        if "not found" in str(e).lower():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
-        # For other errors (e.g., Redis down), a 500 might be appropriate
+        result = await FeatureFlagsService.is_feature_enabled(db, redis_client, flag_key=flag_key, context=context_dict)
+        return result
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feature flag not found",
+        )
+    except Exception as e:
+        # Log the error for debugging
+        logger.error(f"Error evaluating flag {flag_key}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error evaluating feature flag",
         )
-    return is_enabled

@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import BackgroundTasks
-from sqlalchemy import and_, desc, or_
+from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.orm import Session
 
 from app.modules.webhooks.models import (
@@ -38,7 +38,9 @@ class WebhooksService:
 
     @staticmethod
     async def create_endpoint(
-        db: Session, endpoint: WebhookEndpointCreate, created_by: Optional[str] = None
+        db: Session,
+        endpoint: WebhookEndpointCreate,
+        created_by: Optional[str] = None,
     ) -> WebhookEndpoint:
         """
         Create a new webhook endpoint.
@@ -62,8 +64,8 @@ class WebhooksService:
             created_by=created_by,
         )
         db.add(db_endpoint)
-        db.commit()
-        db.refresh(db_endpoint)
+        await db.commit()
+        await db.refresh(db_endpoint)
         return db_endpoint
 
     @staticmethod
@@ -81,7 +83,13 @@ class WebhooksService:
         Returns:
             Updated webhook endpoint if found, None otherwise
         """
-        db_endpoint = db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
+        # Build the query using SQLAlchemy select
+        query = select(WebhookEndpoint).where(WebhookEndpoint.id == endpoint_id)
+
+        # Execute the query asynchronously
+        result = await db.execute(query)
+        db_endpoint = result.scalar_one_or_none()
+
         if not db_endpoint:
             return None
 
@@ -95,8 +103,8 @@ class WebhooksService:
         for key, value in update_data.items():
             setattr(db_endpoint, key, value)
 
-        db.commit()
-        db.refresh(db_endpoint)
+        await db.commit()
+        await db.refresh(db_endpoint)
         return db_endpoint
 
     @staticmethod
@@ -111,12 +119,18 @@ class WebhooksService:
         Returns:
             True if deleted, False if not found
         """
-        db_endpoint = db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
+        # Build the query using SQLAlchemy select
+        query = select(WebhookEndpoint).where(WebhookEndpoint.id == endpoint_id)
+
+        # Execute the query asynchronously
+        result = await db.execute(query)
+        db_endpoint = result.scalar_one_or_none()
+
         if not db_endpoint:
             return False
 
-        db.delete(db_endpoint)
-        db.commit()
+        await db.delete(db_endpoint)
+        await db.commit()
         return True
 
     @staticmethod
@@ -131,7 +145,12 @@ class WebhooksService:
         Returns:
             Webhook endpoint if found, None otherwise
         """
-        return db.query(WebhookEndpoint).filter(WebhookEndpoint.id == endpoint_id).first()
+        # Build the query using SQLAlchemy select
+        query = select(WebhookEndpoint).where(WebhookEndpoint.id == endpoint_id)
+
+        # Execute the query asynchronously
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def get_endpoints(
@@ -152,12 +171,18 @@ class WebhooksService:
         Returns:
             List of webhook endpoints
         """
-        query = db.query(WebhookEndpoint)
+        # Build the query using SQLAlchemy select
+        query = select(WebhookEndpoint)
 
         if status:
-            query = query.filter(WebhookEndpoint.status == status.value)
+            query = query.where(WebhookEndpoint.status == status.value)
 
-        return query.order_by(WebhookEndpoint.created_at.desc()).offset(skip).limit(limit).all()
+        # Add ordering, offset and limit
+        query = query.order_by(desc(WebhookEndpoint.created_at)).offset(skip).limit(limit)
+
+        # Execute the query asynchronously
+        result = await db.execute(query)
+        return result.scalars().all()
 
     @staticmethod
     async def create_subscription(
@@ -180,22 +205,20 @@ class WebhooksService:
             return None
 
         # Check if subscription already exists
-        existing_subscription = (
-            db.query(WebhookSubscription)
-            .filter(
-                and_(
-                    WebhookSubscription.endpoint_id == endpoint_id,
-                    WebhookSubscription.event_type == subscription.event_type.value,
-                )
+        query = select(WebhookSubscription).where(
+            and_(
+                WebhookSubscription.endpoint_id == endpoint_id,
+                WebhookSubscription.event_type == subscription.event_type.value,
             )
-            .first()
         )
+        result = await db.execute(query)
+        existing_subscription = result.scalar_one_or_none()
 
         if existing_subscription:
             # Update filter conditions if subscription already exists
             existing_subscription.filter_conditions = subscription.filter_conditions
-            db.commit()
-            db.refresh(existing_subscription)
+            await db.commit()
+            await db.refresh(existing_subscription)
             return existing_subscription
 
         # Create new subscription
@@ -205,8 +228,8 @@ class WebhooksService:
             filter_conditions=subscription.filter_conditions,
         )
         db.add(db_subscription)
-        db.commit()
-        db.refresh(db_subscription)
+        await db.commit()
+        await db.refresh(db_subscription)
         return db_subscription
 
     @staticmethod
@@ -221,12 +244,18 @@ class WebhooksService:
         Returns:
             True if deleted, False if not found
         """
-        db_subscription = db.query(WebhookSubscription).filter(WebhookSubscription.id == subscription_id).first()
+        # Build the query using SQLAlchemy select
+        query = select(WebhookSubscription).where(WebhookSubscription.id == subscription_id)
+
+        # Execute the query asynchronously
+        result = await db.execute(query)
+        db_subscription = result.scalar_one_or_none()
+
         if not db_subscription:
             return False
 
-        db.delete(db_subscription)
-        db.commit()
+        await db.delete(db_subscription)
+        await db.commit()
         return True
 
     @staticmethod
@@ -246,15 +275,18 @@ class WebhooksService:
         Returns:
             List of webhook subscription Pydantic models
         """
-        query = db.query(WebhookSubscription)
+        # Build the query using SQLAlchemy select
+        query = select(WebhookSubscription)
 
         if endpoint_id:
-            query = query.filter(WebhookSubscription.endpoint_id == endpoint_id)
+            query = query.where(WebhookSubscription.endpoint_id == endpoint_id)
 
         if event_type:
-            query = query.filter(WebhookSubscription.event_type == event_type.value)
+            query = query.where(WebhookSubscription.event_type == event_type.value)
 
-        db_subscriptions = query.all()
+        # Execute the query asynchronously
+        result = await db.execute(query)
+        db_subscriptions = result.scalars().all()
 
         # Explicitly convert SQLAlchemy models to Pydantic models
         response_subscriptions = [WebhookSubscriptionResponse.model_validate(sub) for sub in db_subscriptions]
@@ -372,15 +404,19 @@ class WebhooksService:
                 db_delivery.next_retry_at = None
             else:
                 # Create new delivery record if ID not found
-                db_delivery = WebhookDelivery(endpoint_id=endpoint_id, event_type=event_type, payload=payload)
+                db_delivery = WebhookDelivery(
+                    endpoint_id=endpoint_id,
+                    event_type=event_type,
+                    payload=payload,
+                )
                 db.add(db_delivery)
         else:
             # Create new delivery record
             db_delivery = WebhookDelivery(endpoint_id=endpoint_id, event_type=event_type, payload=payload)
             db.add(db_delivery)
 
-        db.commit()
-        db.refresh(db_delivery)
+        await db.commit()
+        await db.refresh(db_delivery)
 
         # Prepare headers
         request_headers = {
@@ -401,7 +437,7 @@ class WebhooksService:
 
         # Store request headers
         db_delivery.request_headers = request_headers
-        db.commit()
+        await db.commit()
 
         try:
             # Send webhook request
@@ -440,8 +476,8 @@ class WebhooksService:
             logger.error(f"Webhook delivery error: ID={db_delivery.id}, Event={event_type}, Error={str(e)}")
 
         # Update delivery record
-        db.commit()
-        db.refresh(db_delivery)
+        await db.commit()
+        await db.refresh(db_delivery)
 
         return db_delivery
 
@@ -485,10 +521,14 @@ class WebhooksService:
                     continue
 
             # Create delivery record
-            db_delivery = WebhookDelivery(endpoint_id=endpoint["id"], event_type=event_type.value, payload=payload)
+            db_delivery = WebhookDelivery(
+                endpoint_id=endpoint["id"],
+                event_type=event_type.value,
+                payload=payload,
+            )
             db.add(db_delivery)
-            db.commit()
-            db.refresh(db_delivery)
+            await db.commit()
+            await db.refresh(db_delivery)
 
             delivery_ids.append(db_delivery.id)
 
@@ -527,10 +567,14 @@ class WebhooksService:
         if test_mode:
             logger.info(f"Retrying failed deliveries at {now}")
 
+        # Build the query using SQLAlchemy select
         query = (
-            db.query(WebhookDelivery)
-            .join(WebhookEndpoint, WebhookDelivery.endpoint_id == WebhookEndpoint.id)
-            .filter(
+            select(WebhookDelivery)
+            .join(
+                WebhookEndpoint,
+                WebhookDelivery.endpoint_id == WebhookEndpoint.id,
+            )
+            .where(
                 and_(
                     WebhookDelivery.success == False,  # noqa: E712 - Use == for SQLAlchemy boolean comparison
                     WebhookDelivery.attempt_count < WebhookEndpoint.retry_count,
@@ -547,7 +591,9 @@ class WebhooksService:
         if test_mode:
             logger.info(f"Retry query SQL: {query}")
 
-        failed_deliveries = query.all()
+        # Execute the query asynchronously
+        result = await db.execute(query)
+        failed_deliveries = result.scalars().all()
 
         # Debug: Log the number of deliveries found
         if test_mode:
@@ -556,7 +602,10 @@ class WebhooksService:
         retry_count = 0
         for delivery in failed_deliveries:
             # Get endpoint details
-            endpoint = db.query(WebhookEndpoint).filter(WebhookEndpoint.id == delivery.endpoint_id).first()
+            endpoint_query = select(WebhookEndpoint).where(WebhookEndpoint.id == delivery.endpoint_id)
+            endpoint_result = await db.execute(endpoint_query)
+            endpoint = endpoint_result.scalar_one_or_none()
+
             if not endpoint:
                 continue
 
@@ -567,7 +616,7 @@ class WebhooksService:
 
             # Update next retry time
             delivery.next_retry_at = next_retry
-            db.commit()
+            await db.commit()
 
             # In test mode, directly await the delivery instead of creating a background task
             if test_mode:

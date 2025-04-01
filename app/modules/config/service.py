@@ -1,9 +1,12 @@
+import json
+import logging
 from typing import Any, List, Optional
 
 from fastapi import HTTPException, status
 from redis import Redis
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.modules.config.models import (
     ConfigHistory,
@@ -14,6 +17,8 @@ from app.modules.config.models import (
     ConfigScopeCreate,
     ConfigScopeUpdate,
 )
+
+log = logging.getLogger(__name__)
 
 
 class ConfigService:
@@ -278,7 +283,10 @@ class ConfigService:
 
     @staticmethod
     async def update_config_scope(
-        db: Session, scope_id: int, scope_update: ConfigScopeUpdate, actor_id: str
+        db: Session,
+        scope_id: int,
+        scope_update: ConfigScopeUpdate,
+        actor_id: str,
     ) -> ConfigScope:
         """
         Update a configuration scope.
@@ -337,27 +345,48 @@ class ConfigService:
     @classmethod
     async def invalidate_config_cache(cls, redis: Redis, scope_name: str, key: str) -> bool:
         """
-        Invalidate a cached configuration item.
+        Invalidate the cache for a specific config item.
         """
-        redis_key = cls.CONFIG_KEY_PATTERN.format(scope=scope_name, key=key)
-        return redis.delete(redis_key) > 0
-
-    @classmethod
-    async def invalidate_scope_cache(cls, redis: Redis, scope_name: str) -> int:
-        """
-        Invalidate all cached configuration items for a scope.
-        """
-        pattern = cls.CONFIG_SCOPE_PATTERN.format(scope=scope_name)
-        keys = redis.keys(pattern)
-        if not keys:
-            return 0
-        return redis.delete(*keys)
+        cache_key = cls._get_cache_key(scope_name, key)
+        await redis.delete(cache_key)
+        log.info(f"Invalidated cache for config: {scope_name}/{key}")
 
     @classmethod
     async def publish_config_update(cls, redis: Redis, scope_name: str, key: str) -> int:
         """
-        Publish a configuration update event.
+        Publish a notification about a config update.
         """
-        channel = f"config_updates:{scope_name}"
-        message = f"{key}"
-        return redis.publish(channel, message)
+        channel = "config_updates"
+        message = json.dumps({"scope": scope_name, "key": key, "action": "updated"})
+        await redis.publish(channel, message)
+        log.info(f"Published update notification for config: {scope_name}/{key}")
+
+    @classmethod
+    async def get_all_config_items(cls, db: Session) -> List[ConfigItem]:
+        """
+        Retrieve all configuration items.
+        """
+        return db.query(ConfigItem).options(selectinload(ConfigItem.scope)).all()
+
+    @classmethod
+    async def get_config_item_by_id(cls, db: Session, item_id: int) -> Optional[ConfigItem]:
+        """
+        Retrieve a configuration item by ID.
+        """
+        return db.query(ConfigItem).filter(ConfigItem.id == item_id).options(selectinload(ConfigItem.scope)).first()
+
+    @classmethod
+    async def get_config_item_by_scope_and_key(cls, db: Session, scope_name: str, key: str) -> Optional[ConfigItem]:
+        """
+        Retrieve a configuration item by its scope name and key.
+        """
+        stmt = (
+            select(ConfigItem)
+            .join(ConfigScope)
+            .where(ConfigScope.name == scope_name, ConfigItem.key == key)
+            .options(selectinload(ConfigItem.scope))
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    # --- Cache Operations ---

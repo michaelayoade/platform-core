@@ -1,12 +1,22 @@
 import os
 import sys
 from logging.config import fileConfig
+from pathlib import Path
 
+from dotenv import load_dotenv
+from shared_core.base.base_model import BaseModel
 from sqlalchemy import engine_from_config, pool
 
 import alembic
-from app.core.settings import get_settings  # Import settings if needed for DB URL
-from app.db.base_class import Base  # Import Base from your models
+from app.core.config import settings
+
+# --- Load Environment Variables --- #
+# Assuming alembic is run from the project root (platform-core)
+project_root = Path(__file__).parent.parent
+dotenv_path = project_root / ".env"
+print(f"Alembic: Loading environment variables from: {dotenv_path}")
+loaded = load_dotenv(dotenv_path=dotenv_path)
+print(f"Alembic: .env loaded: {loaded}")
 
 # Adjust the path according to your actual project structure
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
@@ -24,18 +34,12 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = Base.metadata
+target_metadata = BaseModel.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-
-
-def get_url():
-    """Return the database URL from settings."""
-    settings = get_settings()
-    return settings.DATABASE_URL
 
 
 def run_migrations_offline() -> None:
@@ -50,7 +54,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = get_url()
+    # Get URL directly from loaded settings
+    url = str(settings.DB.DATABASE_URL)
     alembic.context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -70,7 +75,8 @@ def run_migrations_online() -> None:
 
     """
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
+    # Set URL directly from loaded settings
+    configuration["sqlalchemy.url"] = str(settings.DB.DATABASE_URL)
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",

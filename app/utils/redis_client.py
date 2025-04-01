@@ -5,10 +5,9 @@ import redis.asyncio as redis
 from redis.asyncio.client import Redis
 from redis.exceptions import RedisError
 
-from app.core.settings import get_settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 
 class RedisClient:
@@ -28,10 +27,10 @@ class RedisClient:
             return
 
         try:
-            logger.info(f"Initializing Redis connection pool for URL: {settings.REDIS_URL}")
+            logger.info(f"Initializing Redis connection pool for URL: {settings.CACHE.REDIS_URL}")
             # Use ConnectionPool for efficient connection management
             cls._pool = redis.ConnectionPool.from_url(
-                str(settings.REDIS_URL),  # Ensure URL is a string
+                str(settings.CACHE.REDIS_URL),  # Ensure URL is a string
                 decode_responses=True,  # Automatically decode responses to strings
                 max_connections=10,  # Example: configure pool size
             )
@@ -47,7 +46,10 @@ class RedisClient:
             cls._pool = None
             # raise  # Optionally re-raise the exception
         except Exception as e:
-            logger.error(f"An unexpected error occurred during Redis initialization: {e}", exc_info=True)
+            logger.error(
+                f"An unexpected error occurred during Redis initialization: {e}",
+                exc_info=True,
+            )
             cls._redis_client = None
             cls._pool = None
             # raise

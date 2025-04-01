@@ -5,6 +5,7 @@
 pytest
 pytest-asyncio
 pytest-cov
+fakeredis # For mocking Redis in tests
 
 # Linting & Formatting
 flake8
