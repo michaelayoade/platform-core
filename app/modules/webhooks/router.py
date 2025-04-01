@@ -4,9 +4,9 @@ Router for the webhooks module.
 
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi import status as http_status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.modules.webhooks.models import (
@@ -31,7 +31,7 @@ router = APIRouter()
     response_model=WebhookEndpointResponse,
     status_code=http_status.HTTP_201_CREATED,
 )
-async def create_webhook_endpoint(endpoint: WebhookEndpointCreate, db: Session = Depends(get_db)):
+async def create_webhook_endpoint(endpoint: WebhookEndpointCreate, db: AsyncSession = Depends(get_db)):
     """
     Create a new webhook endpoint.
     """
@@ -43,9 +43,9 @@ async def create_webhook_endpoint(endpoint: WebhookEndpointCreate, db: Session =
 @router.get("/endpoints", response_model=List[WebhookEndpointListResponse])
 async def get_webhook_endpoints(
     status: Optional[WebhookStatus] = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get webhook endpoints with optional filtering.
@@ -54,7 +54,7 @@ async def get_webhook_endpoints(
 
 
 @router.get("/endpoints/{endpoint_id}", response_model=WebhookEndpointResponse)
-async def get_webhook_endpoint(endpoint_id: int, db: Session = Depends(get_db)):
+async def get_webhook_endpoint(endpoint_id: int, db: AsyncSession = Depends(get_db)):
     """
     Get a webhook endpoint by ID.
     """
@@ -68,7 +68,7 @@ async def get_webhook_endpoint(endpoint_id: int, db: Session = Depends(get_db)):
 async def update_webhook_endpoint(
     endpoint_id: int,
     endpoint_update: WebhookEndpointUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Update a webhook endpoint.
@@ -80,7 +80,7 @@ async def update_webhook_endpoint(
 
 
 @router.delete("/endpoints/{endpoint_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-async def delete_webhook_endpoint(endpoint_id: int, db: Session = Depends(get_db)):
+async def delete_webhook_endpoint(endpoint_id: int, db: AsyncSession = Depends(get_db)):
     """
     Delete a webhook endpoint.
     """
@@ -98,7 +98,7 @@ async def delete_webhook_endpoint(endpoint_id: int, db: Session = Depends(get_db
 async def create_webhook_subscription(
     endpoint_id: int,
     subscription: WebhookSubscriptionCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Create a new webhook subscription for an endpoint.
@@ -113,7 +113,7 @@ async def create_webhook_subscription(
     "/endpoints/{endpoint_id}/subscriptions",
     response_model=List[WebhookSubscriptionResponse],
 )
-async def get_webhook_subscriptions(endpoint_id: int, db: Session = Depends(get_db)):
+async def get_webhook_subscriptions(endpoint_id: int, db: AsyncSession = Depends(get_db)):
     """
     Get all subscriptions for a webhook endpoint.
     """
@@ -125,8 +125,11 @@ async def get_webhook_subscriptions(endpoint_id: int, db: Session = Depends(get_
     return await WebhooksService.get_subscriptions(db, endpoint_id)
 
 
-@router.delete("/subscriptions/{subscription_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-async def delete_webhook_subscription(subscription_id: int, db: Session = Depends(get_db)):
+@router.delete(
+    "/subscriptions/{subscription_id}",
+    status_code=http_status.HTTP_204_NO_CONTENT,
+)
+async def delete_webhook_subscription(subscription_id: int, db: AsyncSession = Depends(get_db)):
     """
     Delete a webhook subscription.
     """
@@ -137,7 +140,11 @@ async def delete_webhook_subscription(subscription_id: int, db: Session = Depend
 
 
 @router.post("/endpoints/{endpoint_id}/test", response_model=WebhookDeliveryResponse)
-async def test_webhook_endpoint(endpoint_id: int, test_request: WebhookTestRequest, db: Session = Depends(get_db)):
+async def test_webhook_endpoint(
+    endpoint_id: int,
+    test_request: WebhookTestRequest,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Test a webhook endpoint with a sample payload.
     """
@@ -149,12 +156,12 @@ async def test_webhook_endpoint(endpoint_id: int, test_request: WebhookTestReque
 
 @router.get("/deliveries", response_model=List[WebhookDeliveryResponse])
 async def get_webhook_deliveries(
-    endpoint_id: Optional[int] = Query(None, description="Filter by endpoint ID"),
-    event_type: Optional[str] = Query(None, description="Filter by event type"),
-    success: Optional[bool] = Query(None, description="Filter by success status"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db),
+    endpoint_id: Optional[int] = None,
+    event_type: Optional[str] = None,
+    success: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get webhook deliveries with optional filtering.
@@ -163,7 +170,7 @@ async def get_webhook_deliveries(
 
 
 @router.get("/deliveries/{delivery_id}", response_model=WebhookDeliveryResponse)
-async def get_webhook_delivery(delivery_id: int, db: Session = Depends(get_db)):
+async def get_webhook_delivery(delivery_id: int, db: AsyncSession = Depends(get_db)):
     """
     Get a webhook delivery by ID.
     """
@@ -178,7 +185,7 @@ async def trigger_webhook(
     event_type: WebhookEventType,
     payload: dict,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Trigger webhooks for an event.
@@ -192,7 +199,7 @@ async def trigger_webhook(
 
 
 @router.post("/retry-failed")
-async def retry_failed_deliveries(db: Session = Depends(get_db)):
+async def retry_failed_deliveries(db: AsyncSession = Depends(get_db)):
     """
     Retry failed webhook deliveries.
     """

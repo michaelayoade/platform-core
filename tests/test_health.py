@@ -2,41 +2,56 @@
 Tests for the health module.
 """
 
+from typing import Dict
+
+import pytest
+from httpx import AsyncClient
+
 from app.modules.health.models import ServiceStatus
 
 
-def test_health_check(client):
+@pytest.mark.asyncio
+async def test_health_check(async_client: AsyncClient):
     """
     Test the health check endpoint.
     """
-    response = client.get("/health/healthz")
+    response = await async_client.get("/api/health/healthz")
     assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == ServiceStatus.OK
+    data: Dict = response.json()
+    assert data["status"] == ServiceStatus.ok
     assert "version" in data
     assert "timestamp" in data
 
 
-def test_readiness_check(client):
+@pytest.mark.asyncio
+async def test_readiness_check(async_client: AsyncClient):
     """
     Test the readiness check endpoint.
 
     Note: This test will pass because we're using mock dependencies.
     In a real environment, this would check actual database and Redis connectivity.
     """
-    response = client.get("/health/readyz")
+    response = await async_client.get("/api/health/readyz")
     assert response.status_code == 200
-    data = response.json()
-    assert "status" in data
+    data: Dict = response.json()
+    assert data["status"] in [
+        ServiceStatus.ok,
+        ServiceStatus.warning,
+        ServiceStatus.error,
+    ]
     assert "version" in data
     assert "timestamp" in data
     assert "components" in data
     assert len(data["components"]) > 0
 
 
-def test_metrics(client):
+@pytest.mark.asyncio
+async def test_metrics(async_client: AsyncClient):
     """
     Test the metrics endpoint.
     """
-    response = client.get("/health/metrics")
+    response = await async_client.get("/api/health/metrics")
     assert response.status_code == 200
+    # Check if the response content looks like Prometheus metrics
+    assert "# HELP" in response.text
+    assert "# TYPE" in response.text

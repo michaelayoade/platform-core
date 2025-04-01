@@ -1,13 +1,12 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 # Alias Pydantic BaseModel
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
+from shared_core.base.base_model import BaseModel
+from sqlalchemy import JSONB, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.db.base_model import BaseModel
 
 
 class ConfigScope(BaseModel):
@@ -22,9 +21,7 @@ class ConfigScope(BaseModel):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationship - Mapped[List[...]] is standard for one-to-many
-    configs: Mapped[List["ConfigItem"]] = relationship(
-        "ConfigItem", back_populates="scope", cascade="all, delete-orphan"
-    )
+    items: Mapped[List["ConfigItem"]] = relationship("ConfigItem", back_populates="scope", cascade="all, delete-orphan")
 
 
 class ConfigItem(BaseModel):
@@ -34,19 +31,33 @@ class ConfigItem(BaseModel):
 
     __tablename__ = "configitem"
 
-    key: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
-    value: Mapped[str] = mapped_column(Text, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    is_secret: Mapped[bool] = mapped_column(Integer, default=0, nullable=False)  # 0=false, 1=true
+    key: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+        comment="Unique key for the config item",
+    )
+    value: Mapped[Any] = mapped_column(JSONB, comment="Value of the config item, stored as JSON")
+    scope_id: Mapped[int] = mapped_column(
+        ForeignKey("configscope.id"),
+        comment="Scope this config item belongs to",
+    )
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="Description of the config item")
+    version: Mapped[int] = mapped_column(Integer, default=1, comment="Version number, incremented on update")
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        comment="Whether the config item is currently enabled",
+    )
 
     # Foreign keys - use Mapped[int] for the type, keep ForeignKey in mapped_column
-    scope_id: Mapped[int] = mapped_column(ForeignKey("configscope.id"), nullable=False)
 
     # Relationships
-    scope: Mapped["ConfigScope"] = relationship("ConfigScope", back_populates="configs")
+    scope: Mapped["ConfigScope"] = relationship("ConfigScope", back_populates="items")
     history: Mapped[List["ConfigHistory"]] = relationship(
-        "ConfigHistory", back_populates="config_item", cascade="all, delete-orphan"
+        "ConfigHistory",
+        back_populates="config_item",
+        cascade="all, delete-orphan",
     )
 
     # Constraints
@@ -108,7 +119,7 @@ class ConfigItemBase(PydanticBaseModel):
     key: str = Field(..., max_length=255, description="Configuration key")
     value: str = Field(..., description="Configuration value")
     description: Optional[str] = None
-    is_secret: bool = False
+    is_enabled: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -124,7 +135,7 @@ class ConfigItemCreate(ConfigItemBase):
 class ConfigItemUpdate(PydanticBaseModel):  # Separate base for update flexibility
     value: Optional[str] = None
     description: Optional[str] = None
-    is_secret: Optional[bool] = None
+    is_enabled: Optional[bool] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -148,7 +159,7 @@ class ConfigHistoryResponse(PydanticBaseModel):
     key: str
     value: str
     description: Optional[str]
-    is_secret: bool
+    is_enabled: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

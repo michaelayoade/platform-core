@@ -9,13 +9,13 @@ from typing import Any, Dict, List, Optional
 # Alias Pydantic BaseModel
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
-from sqlalchemy import JSON, DateTime, Index, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
 
 # Remove incorrect Base import
 # from app.db.base_model import Base
 # Import correct BaseModel
-from app.db.base_model import BaseModel
+from shared_core.base.base_model import BaseModel
+from sqlalchemy import JSON, DateTime, Index, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class NotificationType(str, enum.Enum):

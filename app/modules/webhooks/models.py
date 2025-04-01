@@ -8,10 +8,9 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field, HttpUrl
+from shared_core.base.base_model import BaseModel
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.db.base_model import BaseModel
 
 
 class WebhookEventType(str, enum.Enum):
@@ -78,7 +77,9 @@ class WebhookSubscription(BaseModel):
     # id, created_at, updated_at are inherited from BaseModel
 
     endpoint_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("webhook_endpoints.id", ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey("webhook_endpoints.id", ondelete="CASCADE"),
+        nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     filter_conditions: Mapped[Optional[Dict[str, Any]]] = mapped_column(
@@ -103,7 +104,9 @@ class WebhookDelivery(BaseModel):
     # id, created_at, updated_at are inherited from BaseModel
 
     endpoint_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("webhook_endpoints.id", ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey("webhook_endpoints.id", ondelete="CASCADE"),
+        nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     payload: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)

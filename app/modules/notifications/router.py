@@ -5,8 +5,8 @@ Router for the notifications module.
 from typing import List, Optional
 
 import redis
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.redis import get_redis
 from app.db.session import get_db
@@ -27,29 +27,25 @@ router = APIRouter()
 @router.post("/", response_model=NotificationResponse, status_code=201)
 async def create_notification(
     notification: NotificationCreate,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis),
 ):
     """
     Create a new notification and publish it for real-time delivery.
     """
-    return await NotificationsService.create_and_publish_notification(db, redis_client, notification, background_tasks)
+    return await NotificationsService.create_and_publish_notification(db, redis_client, notification)
 
 
 @router.post("/bulk", response_model=List[NotificationResponse], status_code=201)
 async def create_bulk_notifications(
     notification: NotificationBulkCreate,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis),
 ):
     """
     Create multiple notifications at once and publish them for real-time delivery.
     """
-    return await NotificationsService.create_and_publish_bulk_notifications(
-        db, redis_client, notification, background_tasks
-    )
+    return await NotificationsService.create_and_publish_bulk_notifications(db, redis_client, notification)
 
 
 @router.get("/", response_model=List[NotificationResponse])
@@ -60,8 +56,13 @@ async def get_notifications(
     priority: Optional[NotificationPriority] = Query(None, description="Filter by priority"),
     include_expired: bool = Query(False, description="Include expired notifications"),
     skip: int = Query(0, ge=0, description="Number of notifications to skip"),
-    limit: int = Query(100, ge=1, le=100, description="Maximum number of notifications to return"),
-    db: Session = Depends(get_db),
+    limit: int = Query(
+        100,
+        ge=1,
+        le=100,
+        description="Maximum number of notifications to return",
+    ),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get notifications with optional filtering.
@@ -81,7 +82,7 @@ async def get_notifications(
 @router.get("/count", response_model=dict)
 async def get_unread_count(
     recipient_id: str = Query(..., description="Recipient ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get the count of unread notifications for a recipient.
@@ -91,7 +92,7 @@ async def get_unread_count(
 
 
 @router.get("/{notification_id}", response_model=NotificationResponse)
-async def get_notification(notification_id: int, db: Session = Depends(get_db)):
+async def get_notification(notification_id: int, db: AsyncSession = Depends(get_db)):
     """
     Get a specific notification by ID.
     """
@@ -102,7 +103,11 @@ async def get_notification(notification_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{notification_id}", response_model=NotificationResponse)
-async def update_notification(notification_id: int, update_data: NotificationUpdate, db: Session = Depends(get_db)):
+async def update_notification(
+    notification_id: int,
+    update_data: NotificationUpdate,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Update a notification.
     """
@@ -113,7 +118,7 @@ async def update_notification(notification_id: int, update_data: NotificationUpd
 
 
 @router.post("/{notification_id}/read", response_model=NotificationResponse)
-async def mark_as_read(notification_id: int, db: Session = Depends(get_db)):
+async def mark_as_read(notification_id: int, db: AsyncSession = Depends(get_db)):
     """
     Mark a notification as read.
     """
@@ -126,7 +131,7 @@ async def mark_as_read(notification_id: int, db: Session = Depends(get_db)):
 @router.post("/read-all")
 async def mark_all_as_read(
     recipient_id: str = Query(..., description="Recipient ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Mark all notifications for a recipient as read.
@@ -136,7 +141,7 @@ async def mark_all_as_read(
 
 
 @router.delete("/{notification_id}", status_code=204)
-async def delete_notification(notification_id: int, db: Session = Depends(get_db)):
+async def delete_notification(notification_id: int, db: AsyncSession = Depends(get_db)):
     """
     Delete a notification.
     """
@@ -147,9 +152,12 @@ async def delete_notification(notification_id: int, db: Session = Depends(get_db
 
 
 @router.post("/clean-expired")
-async def clean_expired_notifications(db: Session = Depends(get_db)):
+async def clean_expired_notifications(db: AsyncSession = Depends(get_db)):
     """
     Clean up expired notifications.
     """
     count = await NotificationsService.clean_expired_notifications(db)
-    return {"deleted_count": count, "message": f"Deleted {count} expired notifications"}
+    return {
+        "deleted_count": count,
+        "message": f"Deleted {count} expired notifications",
+    }

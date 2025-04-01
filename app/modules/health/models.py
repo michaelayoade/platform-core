@@ -9,10 +9,10 @@ class ServiceStatus(str, Enum):
     Enum for service status values.
     """
 
-    OK = "ok"
-    WARNING = "warning"
-    ERROR = "error"
-    UNKNOWN = "unknown"
+    ok = "ok"
+    warning = "warning"
+    error = "error"
+    unknown = "unknown"
 
 
 class HealthCheck(BaseModel):
@@ -45,3 +45,14 @@ class ReadinessCheck(BaseModel):
     version: str
     timestamp: str
     components: List[ComponentStatus]
+
+
+class HealthResponse(BaseModel):
+    """
+    Generic health response model.
+    """
+
+    status: ServiceStatus
+    version: str
+    timestamp: str
+    components: Optional[List[ComponentStatus]] = None

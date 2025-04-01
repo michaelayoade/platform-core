@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.modules.audit.models import AuditLogCreate, AuditLogResponse
@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=AuditLogResponse, status_code=status.HTTP_201_CREATED)
-async def create_audit_log(audit_log: AuditLogCreate, db: Session = Depends(get_db)):
+async def create_audit_log(audit_log: AuditLogCreate, db: AsyncSession = Depends(get_db)):
     """
     Create a new audit log entry.
     """
@@ -20,18 +20,18 @@ async def create_audit_log(audit_log: AuditLogCreate, db: Session = Depends(get_
 
 
 @router.get("/", response_model=List[AuditLogResponse])
-async def list_audit_logs(
-    actor_id: Optional[str] = None,
-    event_type: Optional[str] = None,
-    resource_type: Optional[str] = None,
-    resource_id: Optional[str] = None,
-    action: Optional[str] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-    db: Session = Depends(get_db),
+async def get_audit_logs(
+    actor_id: Optional[str] = Query(None),
+    event_type: Optional[str] = Query(None),
+    resource_type: Optional[str] = Query(None),
+    resource_id: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
     skip: int = 0,
     limit: int = 100,
-) -> List[AuditLogResponse]:
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get audit logs with optional filtering.
     """
@@ -50,7 +50,7 @@ async def list_audit_logs(
 
 
 @router.get("/{audit_log_id}", response_model=AuditLogResponse)
-async def get_audit_log(audit_log_id: int, db: Session = Depends(get_db)):
+async def get_audit_log(audit_log_id: int, db: AsyncSession = Depends(get_db)):
     """
     Get an audit log by ID.
     """

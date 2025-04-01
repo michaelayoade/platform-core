@@ -8,6 +8,7 @@ python-dotenv # Environment variable loading
 # Database
 sqlalchemy
 psycopg2-binary # PostgreSQL driver
+asyncpg # Async PostgreSQL driver
 alembic # Database migrations
 
 # Cache/Queue
@@ -22,6 +23,10 @@ passlib[bcrypt] # For potential hashing needs
 
 # HTTP Client (for webhooks)
 httpx
+
+# Shared Core Library (Install locally for development)
+#-e ../../libs/shared-core
+# NOTE: Inside Docker, shared-core is installed directly via Dockerfile COPY and RUN commands
 
 # Testing - Moved to dev-requirements.txt
 # pytest
